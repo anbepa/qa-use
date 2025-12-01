@@ -9,6 +9,11 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/qa-use
       - INNGEST_DEV=1
       - INNGEST_BASE_URL=http://inngest:8288
+
+      - HEADLESS=${HEADLESS:-true}
+      - VIDEO=${VIDEO:-false}
+      - MAX_AGENT_STEPS=${MAX_AGENT_STEPS:-30}
+      - IGNORE_HTTPS_ERRORS=${IGNORE_HTTPS_ERRORS:-false}
     ports:
       - '3000:3000'
     depends_on:
@@ -18,6 +23,8 @@ services:
         condition: service_completed_successfully
     networks:
       - qause-network
+    volumes:
+      - ./public/evidences:/app/public/evidences
 
   inngest:
     image: inngest/inngest

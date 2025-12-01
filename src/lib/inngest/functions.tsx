@@ -1,7 +1,6 @@
 import { eq, inArray } from 'drizzle-orm'
 import { NonRetriableError, RetryAfterError } from 'inngest'
 
-import { client } from '../api/client'
 import { db } from '../db/db'
 import * as schema from '../db/schema'
 import { resend } from '../resend/client'
@@ -10,6 +9,7 @@ import type { TestDefinition } from '../testing/engine'
 import { getTaskPrompt, getTaskResponse, RESPONSE_JSON_SCHEMA } from '../testing/engine'
 import { ExhaustiveSwitchCheck } from '../types'
 import { inngest } from './client'
+import { AgentLoopService } from '../services/agent-loop.service'
 
 // Functions -----------------------------------------------------------------
 
@@ -50,9 +50,7 @@ export const runTest = inngest.createFunction(
   async ({ step, event }) => {
     const testRunId = event.data.testRunId
 
-    await step.run(`start-test-run-${testRunId}`, _startTestRun, { testRunId })
-
-    await step.run(`complete-test-run-${testRunId}`, _pollTaskUntilFinished, { testRunId })
+    await step.run(`run-test-agent-${testRunId}`, _runTestAgent, { testRunId })
 
     await step.run(`finalize-test-run`, _finalizeTestRun, { testRunId })
   },
@@ -87,11 +85,7 @@ export const runTestSuite = inngest.createFunction(
     })
 
     await Promise.all(
-      testRunIds.map((testRunId) => step.run(`start-test-run-${testRunId}`, _startTestRun, { testRunId })),
-    )
-
-    await Promise.all(
-      testRunIds.map((testRunId) => step.run(`complete-test-run-${testRunId}`, _pollTaskUntilFinished, { testRunId })),
+      testRunIds.map((testRunId) => step.run(`run-test-agent-${testRunId}`, _runTestAgent, { testRunId })),
     )
 
     await step.run(`finalize-suite-run`, _finalizeSuiteRun, { suiteId: event.data.suiteRunId, testRunIds })
@@ -103,9 +97,9 @@ export const runTestSuite = inngest.createFunction(
 // Steps ---------------------------------------------------------------------
 
 /**
- * Start a new agent test run and return the ID of the test run.
+ * Run the test agent locally using Gemini and Playwright.
  */
-async function _startTestRun({ testRunId }: { testRunId: number }): Promise<number> {
+async function _runTestAgent({ testRunId }: { testRunId: number }) {
   const dbTestRun = await db.query.testRun.findFirst({
     where: eq(schema.testRun.id, testRunId),
     with: {
@@ -115,15 +109,30 @@ async function _startTestRun({ testRunId }: { testRunId: number }): Promise<numb
           steps: true,
         },
       },
+      testRunSteps: true,
     },
   })
 
-  if (dbTestRun?.browserUseId != null) {
-    return dbTestRun.id
-  }
-
   if (!dbTestRun) {
     throw new NonRetriableError(`Test run not found: ${testRunId}`)
+  }
+
+  // Update status to running
+  await db
+    .update(schema.testRun)
+    .set({
+      status: 'running',
+      startedAt: new Date(),
+    })
+    .where(eq(schema.testRun.id, dbTestRun.id))
+
+  if (dbTestRun.suiteRunId) {
+    await db
+      .update(schema.suiteRun)
+      .set({
+        status: 'running',
+      })
+      .where(eq(schema.suiteRun.id, dbTestRun.suiteRunId))
   }
 
   const definition: TestDefinition = {
@@ -136,173 +145,50 @@ async function _startTestRun({ testRunId }: { testRunId: number }): Promise<numb
     })),
   }
 
-  // Start browser task
-  const buTaskResponse = await client.POST('/api/v1/run-task', {
-    body: {
-      highlight_elements: false,
-      enable_public_share: true,
-      save_browser_data: false,
-      task: getTaskPrompt(definition),
-      //
-      // NOTE: Choose between o4-mini and o3. o3 is more expensive but more accurate.
-      // llm_model: 'o4-mini',
-      llm_model: 'o3',
-      //
-      use_adblock: true,
-      use_proxy: true,
-      max_agent_steps: 10,
-      structured_output_json: JSON.stringify(RESPONSE_JSON_SCHEMA),
-    },
-  })
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    throw new NonRetriableError('GEMINI_API_KEY is not set')
+  }
 
-  if (!buTaskResponse.data) {
-    throw new RetryAfterError('Failed to start browser task', 1_000, {
-      cause: new Error(JSON.stringify(buTaskResponse.error)),
+  const agent = new AgentLoopService(apiKey, Number(process.env.MAX_AGENT_STEPS) || 30)
+  const result = await agent.run(definition, testRunId)
+
+  // Update final status
+  if (result.status === 'pass') {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(schema.testRun)
+        .set({
+          finishedAt: new Date(),
+          status: 'passed',
+          error: null,
+        })
+        .where(eq(schema.testRun.id, dbTestRun.id))
+
+      await tx
+        .update(schema.testRunStep)
+        .set({
+          status: 'passed',
+        })
+        .where(eq(schema.testRunStep.testRunId, dbTestRun.id))
+    })
+  } else {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(schema.testRun)
+        .set({
+          finishedAt: new Date(),
+          status: 'failed',
+          error: result.error,
+        })
+        .where(eq(schema.testRun.id, dbTestRun.id))
+
+      // Mark all steps as failed for now, or implement granular step status if AgentLoop supports it
+      // For now, we just mark the run as failed.
     })
   }
 
-  if (dbTestRun.suiteRunId) {
-    await db
-      .update(schema.suiteRun)
-      .set({
-        status: 'running',
-      })
-      .where(eq(schema.suiteRun.id, dbTestRun.suiteRunId))
-  }
-
-  await db
-    .update(schema.testRun)
-    .set({
-      status: 'running',
-      browserUseId: buTaskResponse.data.id,
-    })
-    .where(eq(schema.testRun.id, dbTestRun.id))
-
-  return dbTestRun.id
-}
-
-/**
- * Polls the Browser Use API until the task is finished.
- */
-async function _pollTaskUntilFinished({ testRunId }: { testRunId: number }) {
-  while (true) {
-    const dbTestRun = await db.query.testRun.findFirst({
-      where: eq(schema.testRun.id, testRunId),
-      with: {
-        testRunSteps: true,
-      },
-    })
-
-    if (!dbTestRun) {
-      throw new NonRetriableError(`Test run not found: ${testRunId}`)
-    }
-
-    if (!dbTestRun.browserUseId) {
-      throw new NonRetriableError(`Test run not started: ${testRunId}`)
-    }
-
-    const buTaskResponse = await client.GET('/api/v1/task/{task_id}', {
-      params: { path: { task_id: dbTestRun.browserUseId } },
-    })
-
-    if (buTaskResponse.error || !buTaskResponse.data) {
-      throw new RetryAfterError('Failed to get task status, retrying...', 1_000)
-    }
-
-    switch (buTaskResponse.data.status) {
-      case 'finished': {
-        const taskResult = getTaskResponse(buTaskResponse.data.output)
-
-        if (taskResult.status === 'pass') {
-          await db.transaction(async (tx) => {
-            await tx
-              .update(schema.testRun)
-              .set({
-                finishedAt: new Date(),
-                status: 'passed',
-                error: null,
-                publicShareUrl: buTaskResponse.data.public_share_url,
-                liveUrl: buTaskResponse.data.live_url,
-              })
-              .where(eq(schema.testRun.id, dbTestRun.id))
-
-            // NOTE: Here we update all steps at once and mark them as passed.
-            await tx
-              .update(schema.testRunStep)
-              .set({
-                status: 'passed' as const,
-              })
-              .where(eq(schema.testRunStep.testRunId, dbTestRun.id))
-          })
-        }
-
-        if (taskResult.status === 'failing') {
-          await db.transaction(async (tx) => {
-            await tx
-              .update(schema.testRun)
-              .set({
-                finishedAt: new Date(),
-                status: 'failed',
-                error: taskResult.error,
-                publicShareUrl: buTaskResponse.data.public_share_url,
-                liveUrl: buTaskResponse.data.live_url,
-              })
-              .where(eq(schema.testRun.id, dbTestRun.id))
-
-            // NOTE: We manually check each step to see if it was performed as expected.
-            for (const step of dbTestRun.testRunSteps) {
-              // TODO: Unify step ID types!
-              const passed = taskResult.steps?.find((s) => s.id === `${step.stepId}`)
-
-              await tx
-                .update(schema.testRunStep)
-                .set({
-                  status: passed ? 'passed' : 'failed',
-                })
-                .where(eq(schema.testRunStep.id, step.id))
-            }
-          })
-        }
-
-        return { ok: true, data: buTaskResponse.data.output }
-      }
-
-      case 'running':
-      case 'created': {
-        if (buTaskResponse.data.live_url) {
-          await db
-            .update(schema.testRun)
-            .set({
-              liveUrl: buTaskResponse.data.live_url,
-              publicShareUrl: buTaskResponse.data.public_share_url,
-            })
-            .where(eq(schema.testRun.id, dbTestRun.id))
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 1_000))
-        break
-      }
-
-      case 'failed':
-      case 'paused':
-      case 'stopped': {
-        await db
-          .update(schema.testRun)
-          .set({
-            status: 'failed',
-          })
-          .where(eq(schema.testRun.id, dbTestRun.id))
-
-        return {
-          ok: false,
-          data: buTaskResponse.data.output,
-        }
-      }
-
-      default:
-        throw new ExhaustiveSwitchCheck(buTaskResponse.data.status)
-    }
-  }
+  return result
 }
 
 async function _finalizeTestRun({ testRunId }: { testRunId: number }) {

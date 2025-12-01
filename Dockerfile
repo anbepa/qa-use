@@ -1,6 +1,6 @@
-FROM node:23-alpine AS deps
+FROM mcr.microsoft.com/playwright:v1.57.0-noble AS deps
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
@@ -8,9 +8,9 @@ RUN pnpm install --frozen-lockfile
 
 # Builder --------------------------------------------------------------------
 
-FROM node:23-alpine AS builder
+FROM mcr.microsoft.com/playwright:v1.57.0-noble AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm
 
 WORKDIR /app
 
@@ -21,13 +21,13 @@ RUN pnpm build
 
 # Runner ---------------------------------------------------------------------
 
-FROM node:23-alpine AS runner
+FROM mcr.microsoft.com/playwright:v1.57.0-noble AS runner
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm
 
 WORKDIR /app
 ENV NODE_ENV=production
-
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 COPY --from=builder /app ./
 

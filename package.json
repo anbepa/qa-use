@@ -11,6 +11,7 @@
     "openapi:gen": "openapi-typescript https://api.browser-use.com/openapi.json -o ./src/lib/api/v1.d.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@radix-ui/react-dialog": "1.1.14",
     "@radix-ui/react-select": "2.2.5",
     "@radix-ui/react-slot": "1.2.3",
@@ -26,6 +27,7 @@
     "openai": "5.10.2",
     "openapi-fetch": "0.14.0",
     "pg": "8.16.3",
+    "playwright": "^1.57.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "resend": "4.7.0",

@@ -2,6 +2,7 @@
 
 import { CheckCircle, Monitor } from 'lucide-react'
 import { Fragment, useMemo } from 'react'
+import { LivePreview as LivePreviewComponent } from '@/components/LivePreview'
 
 import type { TTestRun } from '@/app/suite/[suiteId]/test/[testId]/run/[testRunId]/loader'
 import { Polling } from '@/components/Polling'
@@ -114,17 +115,22 @@ export function LivePreview({
   status: TRunStatus
   sharedUrl: string | null | undefined
 }) {
+  // Extract runId from the parent component context
+  // This is a workaround - ideally we'd pass runId as a prop
+  const runIdMatch = typeof window !== 'undefined' ? window.location.pathname.match(/\/run\/(\d+)/) : null
+  const runId = runIdMatch ? parseInt(runIdMatch[1], 10) : null
+
   return (
     <div
       className="w-full flex flex-col items-center justify-center relative overflow-hidden border border-gray-300 rounded-xs"
       style={{ aspectRatio: '1280/1050', minHeight: '400px' }}
     >
-      {status === 'running' && liveUrl ? (
-        <iframe src={liveUrl} className="w-full h-full border-0" title="Live test preview" allow="fullscreen" />
+      {status === 'running' && runId ? (
+        <LivePreviewComponent runId={runId} isRunning={true} />
       ) : status === 'pending' || status === 'running' ? (
         <TestRunPlaceholder />
       ) : (
-        <TestFinishedPlaceholder sharedUrl={sharedUrl} />
+        <TestFinishedPlaceholder sharedUrl={sharedUrl} runId={runId} />
       )}
     </div>
   )
@@ -142,19 +148,27 @@ function TestRunPlaceholder() {
   )
 }
 
-function TestFinishedPlaceholder({ sharedUrl }: { sharedUrl: string | null | undefined }) {
+function TestFinishedPlaceholder({ sharedUrl, runId }: { sharedUrl: string | null | undefined; runId: number | null }) {
   return (
     <Fragment>
-      <CheckCircle className="w-12 h-12 mb-4 text-gray-300" />
-      <div className="text-center">
-        <p className="font-medium mb-2">Test completed</p>
+      {runId ? (
+        <div className="w-full h-full">
+          <LivePreviewComponent runId={runId} isRunning={false} />
+        </div>
+      ) : (
+        <>
+          <CheckCircle className="w-12 h-12 mb-4 text-gray-300" />
+          <div className="text-center">
+            <p className="font-medium mb-2">Test completed</p>
 
-        {sharedUrl && (
-          <a href={sharedUrl} className="text-blue-500 hover:text-blue-700" target="_blank">
-            View Agent Run
-          </a>
-        )}
-      </div>
+            {sharedUrl && (
+              <a href={sharedUrl} className="text-blue-500 hover:text-blue-700" target="_blank">
+                View Agent Run
+              </a>
+            )}
+          </div>
+        </>
+      )}
     </Fragment>
   )
 }
