@@ -92,7 +92,10 @@ export class GeminiProvider {
       return JSON.parse(cleanJson)
     } catch (e) {
       console.error('Failed to parse Gemini response:', responseText)
-      return { action: 'fail', reason: 'Invalid JSON response from Gemini' }
+      // Try to extract the reason from the response text
+      const reasonMatch = responseText.match(/"reason":\s*"([^"]+)"/i)
+      const extractedReason = reasonMatch ? reasonMatch[1] : responseText.substring(0, 200)
+      return { action: 'fail', reason: extractedReason || 'Invalid JSON response from Gemini' }
     }
   }
 }

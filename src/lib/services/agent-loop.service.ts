@@ -3,6 +3,9 @@ import { LocalBrowserService } from './local-browser.service'
 import { TestDefinition, TaskResponse } from '../testing/engine'
 import fs from 'fs/promises'
 import path from 'path'
+import { db } from '../db/db'
+import * as schema from '../db/schema'
+import { eq } from 'drizzle-orm'
 
 export class AgentLoopService {
   private gemini: GeminiProvider
@@ -112,6 +115,33 @@ export class AgentLoopService {
         }
 
         history.push({ action, result })
+
+        // Update step status in database
+        try {
+          // Update the test run step status based on the current step count
+          // We need to find the testRunStep that corresponds to this step
+          const testRunSteps = await db.query.testRunStep.findMany({
+            where: eq(schema.testRunStep.testRunId, runId),
+            with: {
+              testStep: true
+            }
+          })
+
+          // Find the step that matches the current stepCount (by order)
+          const currentTestRunStep = testRunSteps.find((trs: any) => trs.testStep.order === stepCount + 1)
+
+          if (currentTestRunStep) {
+            await db
+              .update(schema.testRunStep)
+              .set({
+                status: result.includes('Error') ? 'failed' : 'passed',
+              })
+              .where(eq(schema.testRunStep.id, currentTestRunStep.id))
+          }
+        } catch (dbError) {
+          console.error('[AgentLoop] Failed to update step status:', dbError)
+        }
+
         stepCount++
       }
 
