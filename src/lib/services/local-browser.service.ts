@@ -8,10 +8,22 @@ export class LocalBrowserService {
   private page: Page | null = null
 
   async launch(headless: boolean = true) {
-    const ignoreHTTPSErrors = process.env.IGNORE_HTTPS_ERRORS === 'true'
-    console.log(`[LocalBrowser] Launching with ignoreHTTPSErrors: ${ignoreHTTPSErrors} (env value: ${process.env.IGNORE_HTTPS_ERRORS})`)
+    const ignoreHTTPSErrors = true // Forced as per user request
+    console.log(`[LocalBrowser] Launching with ignoreHTTPSErrors: ${ignoreHTTPSErrors}`)
 
-    this.browser = await chromium.launch({ headless })
+    const args = [
+      '--incognito',
+      '--ignore-certificate-errors',
+      '--ignore-certificate-errors-spki-list', // Helps with some specific cert errors
+      '--no-sandbox', // Often needed in Docker/CI
+      '--disable-setuid-sandbox'
+    ]
+    console.log(`[LocalBrowser] Launching chromium with args: ${JSON.stringify(args)}`)
+
+    this.browser = await chromium.launch({
+      headless,
+      args
+    })
     this.context = await this.browser.newContext({ ignoreHTTPSErrors })
     this.page = await this.context.newPage()
   }
@@ -88,6 +100,197 @@ export class LocalBrowserService {
   async screenshot(path: string) {
     if (!this.page) throw new Error('Browser not initialized')
     await this.page.screenshot({ path, fullPage: true })
+  }
+
+  async reload() {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.reload({ waitUntil: 'networkidle' })
+  }
+
+  async openNewTab(url?: string) {
+    if (!this.context) throw new Error('Browser context not initialized')
+    this.page = await this.context.newPage()
+    if (url) {
+      await this.goto(url)
+    }
+  }
+
+  async closeCurrentTab() {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.close()
+    // Switch to the last open page if available
+    const pages = this.context?.pages() || []
+    if (pages.length > 0) {
+      this.page = pages[pages.length - 1]
+    } else {
+      this.page = null
+    }
+  }
+
+  async switchToTab(index: number) {
+    if (!this.context) throw new Error('Browser context not initialized')
+    const pages = this.context.pages()
+    if (index >= 0 && index < pages.length) {
+      this.page = pages[index]
+    } else {
+      throw new Error(`Tab index ${index} out of bounds (total tabs: ${pages.length})`)
+    }
+  }
+
+  // Navigation
+  async goBack() {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.goBack({ waitUntil: 'networkidle' })
+  }
+
+  async goForward() {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.goForward({ waitUntil: 'networkidle' })
+  }
+
+  // Interaction
+  async dblclick(selector: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.dblclick(selector)
+  }
+
+  async hover(selector: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.hover(selector)
+  }
+
+  async check(selector: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.check(selector)
+  }
+
+  async uncheck(selector: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.uncheck(selector)
+  }
+
+  async fill(selector: string, value: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.fill(selector, value)
+  }
+
+  async press(selector: string, key: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.press(selector, key)
+  }
+
+  async selectOption(selector: string, values: string | string[]) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.selectOption(selector, values)
+  }
+
+  async setInputFiles(selector: string, files: string | string[]) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.setInputFiles(selector, files)
+  }
+
+  async focus(selector: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.focus(selector)
+  }
+
+  // Mouse
+  async mouseMove(x: number, y: number) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.mouse.move(x, y)
+  }
+
+  async mouseDown() {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.mouse.down()
+  }
+
+  async mouseUp() {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.mouse.up()
+  }
+
+  async mouseClick(x: number, y: number) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.mouse.click(x, y)
+  }
+
+  async mouseWheel(deltaX: number, deltaY: number) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.mouse.wheel(deltaX, deltaY)
+  }
+
+  // Keyboard
+  async keyboardType(text: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.keyboard.type(text)
+  }
+
+  async keyboardPress(key: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.keyboard.press(key)
+  }
+
+  async keyboardDown(key: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.keyboard.down(key)
+  }
+
+  async keyboardUp(key: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    await this.page.keyboard.up(key)
+  }
+
+  // Context & Cookies
+  async addCookies(cookies: any[]) {
+    if (!this.context) throw new Error('Browser context not initialized')
+    await this.context.addCookies(cookies)
+  }
+
+  async clearCookies() {
+    if (!this.context) throw new Error('Browser context not initialized')
+    await this.context.clearCookies()
+  }
+
+  async setGeolocation(latitude: number, longitude: number) {
+    if (!this.context) throw new Error('Browser context not initialized')
+    await this.context.setGeolocation({ latitude, longitude })
+    await this.context.grantPermissions(['geolocation'])
+  }
+
+  // JS Evaluation
+  async evaluate(script: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    return await this.page.evaluate(script)
+  }
+
+  // Assertions (Expects)
+  async assertElement(selector: string, assertionType: 'visible' | 'hidden' | 'enabled' | 'disabled' | 'text' | 'value', expectedValue?: string) {
+    if (!this.page) throw new Error('Browser not initialized')
+    const locator = this.page.locator(selector)
+
+    switch (assertionType) {
+      case 'visible':
+        if (!(await locator.isVisible())) throw new Error(`Expected element ${selector} to be visible`)
+        break
+      case 'hidden':
+        if (await locator.isVisible()) throw new Error(`Expected element ${selector} to be hidden`)
+        break
+      case 'enabled':
+        if (!(await locator.isEnabled())) throw new Error(`Expected element ${selector} to be enabled`)
+        break
+      case 'disabled':
+        if (await locator.isEnabled()) throw new Error(`Expected element ${selector} to be disabled`)
+        break
+      case 'text':
+        const text = await locator.textContent()
+        if (!text?.includes(expectedValue || '')) throw new Error(`Expected element ${selector} to contain text "${expectedValue}", found "${text}"`)
+        break
+      case 'value':
+        const value = await locator.inputValue()
+        if (value !== expectedValue) throw new Error(`Expected element ${selector} to have value "${expectedValue}", found "${value}"`)
+        break
+    }
   }
 
   async close() {

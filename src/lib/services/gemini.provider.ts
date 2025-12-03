@@ -1,10 +1,25 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export interface AgentAction {
-  action: 'click' | 'type' | 'wait' | 'done' | 'fail'
+  action: 'click' | 'type' | 'wait' | 'done' | 'fail' | 'reload' | 'open_tab' | 'switch_tab' | 'close_tab' | 'go_back' | 'go_forward' | 'dblclick' | 'hover' | 'check' | 'uncheck' | 'fill' | 'press' | 'select_option' | 'upload_file' | 'mouse_move' | 'mouse_down' | 'mouse_up' | 'mouse_click' | 'mouse_wheel' | 'keyboard_type' | 'keyboard_press' | 'keyboard_down' | 'keyboard_up' | 'evaluate' | 'add_cookies' | 'clear_cookies' | 'set_geolocation' | 'assert'
   selector?: string
   text?: string
   reason?: string
+  url?: string
+  tabIndex?: number
+  value?: string | string[]
+  key?: string
+  files?: string | string[]
+  x?: number
+  y?: number
+  deltaX?: number
+  deltaY?: number
+  script?: string
+  cookies?: any[]
+  latitude?: number
+  longitude?: number
+  assertionType?: 'visible' | 'hidden' | 'enabled' | 'disabled' | 'text' | 'value'
+  expectedValue?: string
 }
 
 export class GeminiProvider {
@@ -30,7 +45,7 @@ export class GeminiProvider {
     return result.response.text()
   }
 
-  async decideAction(dom: string, goal: string, history: any[]): Promise<AgentAction> {
+  async decideAction(dom: string, goal: string, history: any[]): Promise<AgentAction | AgentAction[]> {
     const prompt = `
       You are a browser automation agent.
       Goal: ${goal}
@@ -41,11 +56,23 @@ export class GeminiProvider {
       History:
       ${JSON.stringify(history)}
       
-      Decide the next action. Return ONLY a JSON object with the following structure:
+      Decide the next action(s). You can return a SINGLE action object OR an ARRAY of action objects to be executed in sequence.
+      Return ONLY a JSON object or JSON array with the following structure:
       {
-        "action": "click" | "type" | "wait" | "done" | "fail",
+        "action": "click" | "type" | "wait" | "done" | "fail" | "reload" | "open_tab" | "switch_tab" | "close_tab" | "go_back" | "go_forward" | "dblclick" | "hover" | "check" | "uncheck" | "fill" | "press" | "select_option" | "upload_file" | "mouse_move" | "mouse_down" | "mouse_up" | "mouse_click" | "mouse_wheel" | "keyboard_type" | "keyboard_press" | "keyboard_down" | "keyboard_up" | "evaluate" | "add_cookies" | "clear_cookies" | "set_geolocation" | "assert",
         "selector": "css selector (if needed)",
         "text": "text to type (if needed)",
+        "url": "url to open (for open_tab)",
+        "tabIndex": number (for switch_tab),
+        "value": "value for fill/select/assert",
+        "key": "key for press",
+        "files": "path to files for upload",
+        "x": number, "y": number, "deltaX": number, "deltaY": number,
+        "script": "javascript to evaluate",
+        "cookies": "array of cookies",
+        "latitude": number, "longitude": number,
+        "assertionType": "visible" | "hidden" | "enabled" | "disabled" | "text" | "value",
+        "expectedValue": "expected value for assertion",
         "reason": "reason for this action"
       }
     `
