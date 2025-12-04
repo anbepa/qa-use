@@ -1,7 +1,7 @@
 'use client'
 
 import { CheckCircle, Monitor } from 'lucide-react'
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { LivePreview as LivePreviewComponent } from '@/components/LivePreview'
 
 import type { TTestRun } from '@/app/suite/[suiteId]/test/[testId]/run/[testRunId]/loader'
@@ -13,9 +13,9 @@ import { SectionHeader } from '@/components/shared/SectionHeader'
 import { formatDate } from '@/components/shared/utils'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { TRunStatus } from '@/lib/db/schema'
-
 export function TestRunDetails({ run }: { run: TTestRun }) {
   const { test, error, status, publicShareUrl, liveUrl, testRunSteps } = run
+  const [selectedStep, setSelectedStep] = useState<number | null>(null)
 
   const actions = useMemo(() => {
     const actions = [{ link: `/suite/${run.test.suiteId}/test/${run.test.id}`, label: 'View Test' }]
@@ -28,6 +28,7 @@ export function TestRunDetails({ run }: { run: TTestRun }) {
   }, [run.test.suiteId, run.test.id, publicShareUrl])
 
   const back = useMemo(() => {
+    // ... existing back logic
     if (run.suiteRunId) {
       return { href: `/suite/${run.test.suiteId}/run/${run.suiteRunId}`, label: 'Back to Suite Run' }
     }
@@ -62,8 +63,12 @@ export function TestRunDetails({ run }: { run: TTestRun }) {
             <TableBody>
               {[...testRunSteps]
                 .sort((a, b) => a.testStep.order - b.testStep.order)
-                .map((trs) => (
-                  <TableRow key={trs.id}>
+                .map((trs, index) => (
+                  <TableRow
+                    key={trs.id}
+                    className={`cursor-pointer hover:bg-gray-50 ${selectedStep === index ? 'bg-blue-50' : ''}`}
+                    onClick={() => setSelectedStep(index)}
+                  >
                     <TableCell>
                       <RunStatusIcon status={trs.status} />
                     </TableCell>
@@ -99,7 +104,7 @@ export function TestRunDetails({ run }: { run: TTestRun }) {
         <div className="col-span-1 flex flex-col">
           <SectionHeader title="Live Preview" actions={[]} />
 
-          <LivePreview liveUrl={liveUrl} status={status} sharedUrl={publicShareUrl} />
+          <LivePreview liveUrl={liveUrl} status={status} sharedUrl={publicShareUrl} selectedStep={selectedStep} />
         </div>
       </div>
 
@@ -112,10 +117,12 @@ export function LivePreview({
   liveUrl,
   status,
   sharedUrl,
+  selectedStep
 }: {
   liveUrl: string | null | undefined
   status: TRunStatus
   sharedUrl: string | null | undefined
+  selectedStep: number | null
 }) {
   // Extract runId from the parent component context
   // This is a workaround - ideally we'd pass runId as a prop
@@ -127,7 +134,9 @@ export function LivePreview({
       className="w-full flex flex-col items-center justify-center relative overflow-hidden border border-gray-300 rounded-xs"
       style={{ aspectRatio: '1280/1050', minHeight: '400px' }}
     >
-      {status === 'running' && runId ? (
+      {selectedStep !== null && runId ? (
+        <LivePreviewComponent runId={runId} isRunning={false} selectedStep={selectedStep} />
+      ) : status === 'running' && runId ? (
         <LivePreviewComponent runId={runId} isRunning={true} />
       ) : status === 'pending' || status === 'running' ? (
         <TestRunPlaceholder />

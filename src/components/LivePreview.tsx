@@ -6,15 +6,22 @@ import Image from 'next/image'
 interface LivePreviewProps {
   runId: number
   isRunning: boolean
+  selectedStep?: number | null
 }
 
-export function LivePreview({ runId, isRunning }: LivePreviewProps) {
+export function LivePreview({ runId, isRunning, selectedStep }: LivePreviewProps) {
   const [screenshot, setScreenshot] = useState<string | null>(null)
   const [step, setStep] = useState<number | null>(null)
   const [totalSteps, setTotalSteps] = useState<number>(0)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
   useEffect(() => {
+    if (selectedStep !== undefined && selectedStep !== null) {
+      setScreenshot(`/api/screenshot?runId=${runId}&step=${selectedStep}`)
+      setStep(selectedStep)
+      return
+    }
+
     const fetchLatestScreenshot = async () => {
       try {
         const response = await fetch(`/api/screenshot/latest?runId=${runId}`)
@@ -39,7 +46,7 @@ export function LivePreview({ runId, isRunning }: LivePreviewProps) {
       const interval = setInterval(fetchLatestScreenshot, 2000)
       return () => clearInterval(interval)
     }
-  }, [runId, isRunning])
+  }, [runId, isRunning, selectedStep])
 
   if (!screenshot) {
     return (
