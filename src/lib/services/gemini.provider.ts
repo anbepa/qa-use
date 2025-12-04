@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export interface AgentAction {
-  action: 'click' | 'type' | 'wait' | 'done' | 'fail' | 'reload' | 'open_tab' | 'switch_tab' | 'close_tab' | 'go_back' | 'go_forward' | 'dblclick' | 'hover' | 'check' | 'uncheck' | 'fill' | 'press' | 'select_option' | 'upload_file' | 'mouse_move' | 'mouse_down' | 'mouse_up' | 'mouse_click' | 'mouse_wheel' | 'keyboard_type' | 'keyboard_press' | 'keyboard_down' | 'keyboard_up' | 'evaluate' | 'add_cookies' | 'clear_cookies' | 'set_geolocation' | 'assert'
+  action: 'click' | 'type' | 'wait' | 'done' | 'fail' | 'reload' | 'open_tab' | 'switch_tab' | 'close_tab' | 'go_back' | 'go_forward' | 'dblclick' | 'hover' | 'check' | 'uncheck' | 'fill' | 'press' | 'select_option' | 'upload_file' | 'mouse_move' | 'mouse_down' | 'mouse_up' | 'mouse_click' | 'mouse_wheel' | 'keyboard_type' | 'keyboard_press' | 'keyboard_down' | 'keyboard_up' | 'evaluate' | 'add_cookies' | 'clear_cookies' | 'set_geolocation' | 'assert' | 'save_auth'
   selector?: string
   text?: string
   reason?: string
@@ -20,6 +20,7 @@ export interface AgentAction {
   longitude?: number
   assertionType?: 'visible' | 'hidden' | 'enabled' | 'disabled' | 'text' | 'value'
   expectedValue?: string
+  path?: string
 }
 
 export class GeminiProvider {
@@ -59,7 +60,7 @@ export class GeminiProvider {
       Decide the next action(s). You can return a SINGLE action object OR an ARRAY of action objects to be executed in sequence.
       Return ONLY a JSON object or JSON array with the following structure:
       {
-        "action": "click" | "type" | "wait" | "done" | "fail" | "reload" | "open_tab" | "switch_tab" | "close_tab" | "go_back" | "go_forward" | "dblclick" | "hover" | "check" | "uncheck" | "fill" | "press" | "select_option" | "upload_file" | "mouse_move" | "mouse_down" | "mouse_up" | "mouse_click" | "mouse_wheel" | "keyboard_type" | "keyboard_press" | "keyboard_down" | "keyboard_up" | "evaluate" | "add_cookies" | "clear_cookies" | "set_geolocation" | "assert",
+        "action": "click" | "type" | "wait" | "done" | "fail" | "reload" | "open_tab" | "switch_tab" | "close_tab" | "go_back" | "go_forward" | "dblclick" | "hover" | "check" | "uncheck" | "fill" | "press" | "select_option" | "upload_file" | "mouse_move" | "mouse_down" | "mouse_up" | "mouse_click" | "mouse_wheel" | "keyboard_type" | "keyboard_press" | "keyboard_down" | "keyboard_up" | "evaluate" | "add_cookies" | "clear_cookies" | "set_geolocation" | "assert" | "save_auth",
         "selector": "css selector (if needed)",
         "text": "text to type (if needed)",
         "url": "url to open (for open_tab)",
@@ -73,6 +74,7 @@ export class GeminiProvider {
         "latitude": number, "longitude": number,
         "assertionType": "visible" | "hidden" | "enabled" | "disabled" | "text" | "value",
         "expectedValue": "expected value for assertion",
+        "path": "path to save auth state (for save_auth)",
         "reason": "reason for this action"
       }
     `
@@ -115,7 +117,17 @@ export class GeminiProvider {
 
     try {
       // Clean up markdown code blocks if present
-      const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim()
+      let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim()
+
+      // Sometimes the model adds text after the JSON, so we try to find the last closing brace/bracket
+      const lastBrace = cleanJson.lastIndexOf('}')
+      const lastBracket = cleanJson.lastIndexOf(']')
+
+      if (lastBrace > -1 || lastBracket > -1) {
+        const endIndex = Math.max(lastBrace, lastBracket)
+        cleanJson = cleanJson.substring(0, endIndex + 1)
+      }
+
       return JSON.parse(cleanJson)
     } catch (e) {
       console.error('Failed to parse Gemini response:', responseText)

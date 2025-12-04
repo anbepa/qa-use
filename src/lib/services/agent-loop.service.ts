@@ -197,6 +197,13 @@ export class AgentLoopService {
               case 'assert':
                 if (action.selector && action.assertionType) await this.browser.assertElement(action.selector, action.assertionType, action.expectedValue)
                 break
+              case 'save_auth':
+                // Always save to the default location so it's automatically loaded next time
+                const authPath = path.join(process.cwd(), 'data', 'auth.json')
+                // Ensure directory exists
+                await fs.mkdir(path.dirname(authPath), { recursive: true })
+                await this.browser.saveStorageState(authPath)
+                break
             }
           } catch (e: any) {
             result = `Error: ${e.message}`

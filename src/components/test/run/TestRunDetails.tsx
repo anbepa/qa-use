@@ -60,15 +60,17 @@ export function TestRunDetails({ run }: { run: TTestRun }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {testRunSteps.map((trs) => (
-                <TableRow key={trs.id}>
-                  <TableCell>
-                    <RunStatusIcon status={trs.status} />
-                  </TableCell>
-                  <TableCell>{trs.testStep.order}</TableCell>
-                  <TableCell>{trs.testStep.description}</TableCell>
-                </TableRow>
-              ))}
+              {[...testRunSteps]
+                .sort((a, b) => a.testStep.order - b.testStep.order)
+                .map((trs) => (
+                  <TableRow key={trs.id}>
+                    <TableCell>
+                      <RunStatusIcon status={trs.status} />
+                    </TableCell>
+                    <TableCell>{trs.testStep.order}</TableCell>
+                    <TableCell>{trs.testStep.description}</TableCell>
+                  </TableRow>
+                ))}
 
               <TableRow>
                 <TableCell>

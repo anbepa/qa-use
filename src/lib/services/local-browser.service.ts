@@ -24,7 +24,21 @@ export class LocalBrowserService {
       headless,
       args
     })
-    this.context = await this.browser.newContext({ ignoreHTTPSErrors })
+
+    const authPath = path.join(process.cwd(), 'data', 'auth.json')
+    let storageState: any = undefined
+    try {
+      await fs.access(authPath)
+      console.log(`[LocalBrowser] Found auth state at ${authPath}, loading...`)
+      storageState = authPath
+    } catch {
+      console.log('[LocalBrowser] No auth state found, starting fresh session')
+    }
+
+    this.context = await this.browser.newContext({
+      ignoreHTTPSErrors,
+      storageState // Inject saved state if available
+    })
     this.page = await this.context.newPage()
   }
 
@@ -290,6 +304,26 @@ export class LocalBrowserService {
         const value = await locator.inputValue()
         if (value !== expectedValue) throw new Error(`Expected element ${selector} to have value "${expectedValue}", found "${value}"`)
         break
+    }
+  }
+
+  async saveStorageState(path: string) {
+    if (!this.context) throw new Error('Browser context not initialized')
+    await this.context.storageState({ path })
+    console.log(`[LocalBrowser] Storage state saved to ${path}`)
+  }
+
+  async loadStorageState(path: string) {
+    // This is typically done at context creation, but we can also add cookies/storage to existing context if needed
+    // However, Playwright recommends doing it at context creation. 
+    // For now, we'll assume this is called manually or we restart context.
+    // But since we want to persist session across runs, we should modify launch() to check for a default auth file.
+    console.log(`[LocalBrowser] Loading storage state from ${path}`)
+    const state = JSON.parse(await fs.readFile(path, 'utf-8'))
+    if (this.context) {
+      await this.context.addCookies(state.cookies)
+      // LocalStorage needs to be added via script injection usually or context option
+      // But adding cookies is often enough for session persistence.
     }
   }
 

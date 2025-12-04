@@ -1,4 +1,4 @@
-import { CheckCircle, Loader2, XCircle } from 'lucide-react'
+import { CheckCircle, Loader2, XCircle, Circle } from 'lucide-react'
 
 import type * as schema from '@/lib/db/schema'
 import { ExhaustiveSwitchCheck } from '@/lib/types'
@@ -13,9 +13,9 @@ export function RunStatusIcon({ status }: { status: schema.TRunStatus }) {
     case 'failed':
       return <XCircle className="w-4 h-4 text-red-500" />
     case 'pending':
-      return <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+      return <Circle className="w-4 h-4 text-gray-300" />
     case 'running':
-      return <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+      return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
     default:
       throw new ExhaustiveSwitchCheck(status)
   }
