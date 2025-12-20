@@ -6,6 +6,7 @@ import path from 'path'
 import { db } from '../db/db'
 import * as schema from '../db/schema'
 import { eq } from 'drizzle-orm'
+import { AgentControlService } from './agent-control.service'
 
 export class AgentLoopService {
   private gemini: GeminiProvider
@@ -16,6 +17,13 @@ export class AgentLoopService {
     this.gemini = new GeminiProvider(apiKey)
     this.browser = new LocalBrowserService()
     this.maxSteps = maxSteps
+  }
+
+  private async waitWhilePaused() {
+    while (AgentControlService.isPaused()) {
+      console.log('[AgentLoop] Paused for manual control. Waiting to resume...')
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
   }
 
   async run(test: TestDefinition, runId: number): Promise<TaskResponse> {
@@ -59,6 +67,7 @@ export class AgentLoopService {
       console.log(`[AgentLoop] Starting run ${runId} with max steps ${this.maxSteps}`)
 
       while (stepCount < this.maxSteps) {
+        await this.waitWhilePaused()
         console.log(`[AgentLoop] Step ${stepCount}: Extracting DOM...`)
 
         // Wait a bit before extracting DOM to ensure page is stable
@@ -83,6 +92,7 @@ export class AgentLoopService {
         console.log(`[AgentLoop] Screenshot saved to ${screenshotPath}`)
 
         console.log(`[AgentLoop] Asking Gemini...`)
+        await this.waitWhilePaused()
         const decision = await this.gemini.decideAction(dom, JSON.stringify(test), history)
         const actions = Array.isArray(decision) ? decision : [decision]
         console.log(`[AgentLoop] Gemini decided on ${actions.length} actions:`, actions)

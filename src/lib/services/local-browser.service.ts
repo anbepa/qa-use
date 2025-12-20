@@ -16,7 +16,9 @@ export class LocalBrowserService {
       '--ignore-certificate-errors',
       '--ignore-certificate-errors-spki-list', // Helps with some specific cert errors
       '--no-sandbox', // Often needed in Docker/CI
-      '--disable-setuid-sandbox'
+      '--disable-setuid-sandbox',
+      '--remote-debugging-port=9222',
+      '--remote-debugging-address=0.0.0.0'
     ]
     console.log(`[LocalBrowser] Launching chromium with args: ${JSON.stringify(args)}`)
 

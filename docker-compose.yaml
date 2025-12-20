@@ -16,6 +16,7 @@ services:
       - IGNORE_HTTPS_ERRORS=${IGNORE_HTTPS_ERRORS:-false}
     ports:
       - '3000:3000'
+      - '9222:9222'
     depends_on:
       postgres:
         condition: service_healthy
