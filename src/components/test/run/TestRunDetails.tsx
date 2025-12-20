@@ -114,6 +114,7 @@ export function LivePreview({
   status: TRunStatus
   sharedUrl: string | null | undefined
 }) {
+  const previewUrl = liveUrl ?? sharedUrl ?? null
   const [hasControl, setHasControl] = useState(false)
 
   useEffect(() => {
@@ -127,13 +128,13 @@ export function LivePreview({
       className="w-full flex flex-col items-center justify-center relative overflow-hidden border border-gray-300 rounded-xs"
       style={{ aspectRatio: '1280/1050', minHeight: '400px' }}
     >
-      {status === 'running' && liveUrl ? (
+      {previewUrl && status === 'running' ? (
         <Fragment>
           <iframe
-            src={liveUrl}
+            src={previewUrl}
             className="w-full h-full border-0"
             title="Live test preview"
-            allow="fullscreen; autoplay; clipboard-write"
+            allow="fullscreen; autoplay; clipboard-write; gamepad; display-capture; camera; microphone"
             allowFullScreen
             style={{ pointerEvents: hasControl ? 'auto' : 'none' }}
           />
@@ -152,6 +153,14 @@ export function LivePreview({
               >
                 Tomar control
               </button>
+              <a
+                href={previewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm underline text-white/80 hover:text-white"
+              >
+                Abrir vista en nueva pestaña
+              </a>
             </div>
           )}
 
@@ -184,7 +193,9 @@ function TestRunPlaceholder() {
       <Monitor className="w-12 h-12 mb-4 text-gray-300" />
       <div className="text-center">
         <p className="font-medium mb-2">Live preview not available</p>
-        <p className="text-sm">Preview will appear when test is running</p>
+        <p className="text-sm">
+          Ensure the run is active and the container is exposing port 3000 so the browser feed can load.
+        </p>
       </div>
     </Fragment>
   )
