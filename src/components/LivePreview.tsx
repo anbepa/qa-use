@@ -189,8 +189,8 @@ export function LivePreview({ runId, isRunning, selectedStep }: LivePreviewProps
         <div className="flex-1 bg-white rounded-b-lg overflow-auto p-4">
           <div className="relative w-full h-full">
             <img
-              src={screenshot}
-              alt={`Screenshot step ${step}`}
+              src={screenshot ?? undefined}
+              alt={`Screenshot step ${step ?? 0}`}
               className="w-full h-auto border border-gray-300 rounded shadow-lg"
             />
           </div>
