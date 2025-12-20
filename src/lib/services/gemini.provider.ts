@@ -1,4 +1,5 @@
-import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import type { GenerativeModel } from '@google/generative-ai'
 import type { SetCookieParam } from 'playwright'
 
 export interface AgentAction {
@@ -130,7 +131,7 @@ export class GeminiProvider {
       }
 
       return JSON.parse(cleanJson)
-    } catch (e) {
+    } catch (_) {
       console.error('Failed to parse Gemini response:', responseText)
       // Try to extract the reason from the response text
       const reasonMatch = responseText.match(/"reason":\s*"([^"]+)"/i)

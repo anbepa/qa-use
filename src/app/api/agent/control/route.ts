@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     AgentControlService.setPaused(body.paused)
 
     return NextResponse.json({ paused: AgentControlService.isPaused() })
-  } catch (_error) {
+  } catch (_) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 }

@@ -1,5 +1,6 @@
 import fs from 'fs/promises'
 import path from 'path'
+
 import { chromium } from 'playwright'
 import type { Browser, BrowserContext, Page, SetCookieParam } from 'playwright'
 
@@ -8,7 +9,7 @@ export class LocalBrowserService {
   private context: BrowserContext | null = null
   private page: Page | null = null
 
-    async launch(headless: boolean = true) {
+  async launch(headless: boolean = true) {
     const ignoreHTTPSErrors = true // Forced as per user request
     console.log(`[LocalBrowser] Launching with ignoreHTTPSErrors: ${ignoreHTTPSErrors}`)
 

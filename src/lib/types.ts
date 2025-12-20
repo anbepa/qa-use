@@ -21,7 +21,7 @@ export type UnionOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : n
 /**
  * Utility type for properties that may be undefined until loaded.
  */
-export type Loadable<T> = ({ loading: true } & { [K in keyof T]?: never }) | ({ loading: false } & T)
+export type Loadable<T> = ({ loading: true } & { [P in keyof T]?: never }) | ({ loading: false } & T)
 
 /**
  * Utility type that removes null fields from a type.

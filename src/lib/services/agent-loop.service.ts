@@ -1,13 +1,15 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { LocalBrowserService } from './local-browser.service'
-import { GeminiProvider } from './gemini.provider'
-import type { AgentAction } from './gemini.provider'
-import type { TaskResponse, TestDefinition } from '../testing/engine'
+
+import { eq } from 'drizzle-orm'
+
 import { db } from '../db/db'
 import * as schema from '../db/schema'
-import { eq } from 'drizzle-orm'
+import type { TaskResponse, TestDefinition } from '../testing/engine'
 import { AgentControlService } from './agent-control.service'
+import type { AgentAction } from './gemini.provider'
+import { GeminiProvider } from './gemini.provider'
+import { LocalBrowserService } from './local-browser.service'
 
 export class AgentLoopService {
   private gemini: GeminiProvider

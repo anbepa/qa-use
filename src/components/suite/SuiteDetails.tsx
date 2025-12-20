@@ -36,12 +36,12 @@ export function SuiteDetails({
   duplicateTest,
 }: {
   suite: TSuite
-  runSuite: (_formData: FormData) => Promise<void>
-  deleteSuite: (_formData: FormData) => Promise<void>
-  createTest: (_formData: FormData) => Promise<void>
-  setCronCadence: (cadence: 'hourly' | 'daily' | null, _formData: FormData) => Promise<void>
-  setNotificationsEmailAddress: (_formData: FormData) => Promise<void>
-  duplicateTest: (testId: number, _formData: FormData) => Promise<void>
+  runSuite: (_: FormData) => Promise<void>
+  deleteSuite: (_: FormData) => Promise<void>
+  createTest: (_: FormData) => Promise<void>
+  setCronCadence: (cadence: 'hourly' | 'daily' | null, _: FormData) => Promise<void>
+  setNotificationsEmailAddress: (_: FormData) => Promise<void>
+  duplicateTest: (testId: number, _: FormData) => Promise<void>
 }) {
   const [_cadence, _setCadence] = useState<'hourly' | 'daily' | null>(suite.cronCadence)
 
