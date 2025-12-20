@@ -1,7 +1,7 @@
 'use client'
 
 import { CheckCircle, Monitor } from 'lucide-react'
-import { Fragment, useMemo } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 import type { TTestRun } from '@/app/suite/[suiteId]/test/[testId]/run/[testRunId]/loader'
 import { Polling } from '@/components/Polling'
@@ -114,13 +114,61 @@ export function LivePreview({
   status: TRunStatus
   sharedUrl: string | null | undefined
 }) {
+  const [hasControl, setHasControl] = useState(false)
+
+  useEffect(() => {
+    if (status !== 'running') {
+      setHasControl(false)
+    }
+  }, [status])
+
   return (
     <div
       className="w-full flex flex-col items-center justify-center relative overflow-hidden border border-gray-300 rounded-xs"
       style={{ aspectRatio: '1280/1050', minHeight: '400px' }}
     >
       {status === 'running' && liveUrl ? (
-        <iframe src={liveUrl} className="w-full h-full border-0" title="Live test preview" allow="fullscreen" />
+        <Fragment>
+          <iframe
+            src={liveUrl}
+            className="w-full h-full border-0"
+            title="Live test preview"
+            allow="fullscreen; autoplay; clipboard-write"
+            allowFullScreen
+            style={{ pointerEvents: hasControl ? 'auto' : 'none' }}
+          />
+
+          {!hasControl && (
+            <div className="absolute inset-0 bg-black/30 text-white flex flex-col items-center justify-center gap-3 text-center px-6">
+              <p className="text-lg font-semibold">Vista en vivo lista</p>
+              <p className="text-sm max-w-xl">
+                Toma el control para interactuar con el navegador en tiempo real. Cuando termines, suelta el control para que la
+                ejecución automática continúe.
+              </p>
+              <button
+                type="button"
+                className="bg-white text-black px-4 py-2 rounded-sm font-medium shadow-md hover:bg-gray-100"
+                onClick={() => setHasControl(true)}
+              >
+                Tomar control
+              </button>
+            </div>
+          )}
+
+          {hasControl && (
+            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-2 rounded-sm shadow flex items-center gap-2 text-sm">
+              <span className="inline-flex h-2 w-2 rounded-full bg-green-500" aria-hidden />
+              Control activo
+              <button
+                type="button"
+                className="ml-3 text-blue-600 hover:text-blue-800 font-medium"
+                onClick={() => setHasControl(false)}
+              >
+                Soltar control
+              </button>
+            </div>
+          )}
+        </Fragment>
       ) : status === 'pending' || status === 'running' ? (
         <TestRunPlaceholder />
       ) : (
