@@ -28,7 +28,8 @@ cd qa-use
 
 # 2️⃣ Configure environment variables
 cp .env.example .env
-# Edit .env and add your API keys (required for BrowserUse live preview)
+# Edit .env and add your API keys (required for BrowserUse live preview).
+# Alternatively, export BROWSER_USE_API_KEY in your shell before running Docker if you don't want a local .env file.
 
 # 3️⃣ Launch the platform
 docker compose up

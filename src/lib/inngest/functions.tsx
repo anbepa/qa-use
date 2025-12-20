@@ -136,6 +136,28 @@ async function _startTestRun({ testRunId }: { testRunId: number }): Promise<numb
     })),
   }
 
+  if (!process.env.BROWSER_USE_API_KEY) {
+    await db
+      .update(schema.testRun)
+      .set({
+        status: 'failed',
+        error: 'BROWSER_USE_API_KEY is missing. Add it to your environment (.env) and restart docker compose.',
+        finishedAt: new Date(),
+      })
+      .where(eq(schema.testRun.id, dbTestRun.id))
+
+    if (dbTestRun.suiteRunId) {
+      await db
+        .update(schema.suiteRun)
+        .set({
+          status: 'failed',
+        })
+        .where(eq(schema.suiteRun.id, dbTestRun.suiteRunId))
+    }
+
+    throw new NonRetriableError('BROWSER_USE_API_KEY missing; cannot start BrowserUse task')
+  }
+
   // Start browser task
   const buTaskResponse = await client.POST('/api/v1/run-task', {
     body: {
