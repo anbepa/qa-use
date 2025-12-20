@@ -116,19 +116,20 @@ export function LivePreview({
 }) {
   const previewUrl = liveUrl ?? sharedUrl ?? null
   const [hasControl, setHasControl] = useState(false)
+  const isLive = status === 'running' || status === 'pending'
 
   useEffect(() => {
-    if (status !== 'running') {
+    if (!isLive) {
       setHasControl(false)
     }
-  }, [status])
+  }, [isLive])
 
   return (
     <div
       className="w-full flex flex-col items-center justify-center relative overflow-hidden border border-gray-300 rounded-xs"
       style={{ aspectRatio: '1280/1050', minHeight: '400px' }}
     >
-      {previewUrl && status === 'running' ? (
+      {previewUrl ? (
         <Fragment>
           <iframe
             src={previewUrl}
@@ -177,8 +178,14 @@ export function LivePreview({
               </button>
             </div>
           )}
+
+          <div className="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-2 rounded-sm shadow text-xs text-gray-700 flex items-center gap-2">
+            <span className="inline-flex h-2 w-2 rounded-full bg-blue-500" aria-hidden />
+            Live Preview desde {previewUrl}
+            {!isLive && <span className="text-[11px] text-orange-600 font-medium">(prueba finalizada)</span>}
+          </div>
         </Fragment>
-      ) : status === 'pending' || status === 'running' ? (
+      ) : isLive ? (
         <TestRunPlaceholder />
       ) : (
         <TestFinishedPlaceholder sharedUrl={sharedUrl} />
@@ -194,7 +201,8 @@ function TestRunPlaceholder() {
       <div className="text-center">
         <p className="font-medium mb-2">Live preview not available</p>
         <p className="text-sm">
-          Ensure the run is active and the container is exposing port 3000 so the browser feed can load.
+          Ensure the run is active, the BrowserUse API key is configured in <code>.env</code>, and the container is exposing port
+          3000 so the browser feed can load.
         </p>
       </div>
     </Fragment>

@@ -28,7 +28,7 @@ cd qa-use
 
 # 2️⃣ Configure environment variables
 cp .env.example .env
-# Edit .env and add your API keys
+# Edit .env and add your API keys (required for BrowserUse live preview)
 
 # 3️⃣ Launch the platform
 docker compose up
@@ -50,6 +50,10 @@ Create a `.env` file with the following:
 ```env
 # Required: BrowserUse API Integration
 BROWSER_USE_API_KEY=your_browseruse_api_key_here
+
+# Live Preview
+# The UI embeds the live browser feed from BrowserUse at http://localhost:3000
+# Remember to expose port 3000 when running Docker so you can take/release control.
 
 # Database Configuration
 DATABASE_URL=postgresql://postgres:postgres@postgres:5432/qa-use
