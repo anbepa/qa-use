@@ -1,13 +1,14 @@
-import { chromium, Browser, Page, BrowserContext } from 'playwright'
 import fs from 'fs/promises'
 import path from 'path'
+import { chromium } from 'playwright'
+import type { Browser, BrowserContext, Page, SetCookieParam } from 'playwright'
 
 export class LocalBrowserService {
   private browser: Browser | null = null
   private context: BrowserContext | null = null
   private page: Page | null = null
 
-  async launch(headless: boolean = true) {
+    async launch(headless: boolean = true) {
     const ignoreHTTPSErrors = true // Forced as per user request
     console.log(`[LocalBrowser] Launching with ignoreHTTPSErrors: ${ignoreHTTPSErrors}`)
 
@@ -28,7 +29,7 @@ export class LocalBrowserService {
     })
 
     const authPath = path.join(process.cwd(), 'data', 'auth.json')
-    let storageState: any = undefined
+      let storageState: string | undefined
     try {
       await fs.access(authPath)
       console.log(`[LocalBrowser] Found auth state at ${authPath}, loading...`)
@@ -258,7 +259,7 @@ export class LocalBrowserService {
   }
 
   // Context & Cookies
-  async addCookies(cookies: any[]) {
+    async addCookies(cookies: SetCookieParam[]) {
     if (!this.context) throw new Error('Browser context not initialized')
     await this.context.addCookies(cookies)
   }

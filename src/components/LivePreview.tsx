@@ -8,6 +8,11 @@ interface LivePreviewProps {
   selectedStep?: number | null
 }
 
+interface DevtoolsTarget {
+  devtoolsFrontendUrl?: string
+  type?: string
+}
+
 export function LivePreview({ runId, isRunning, selectedStep }: LivePreviewProps) {
   const [screenshot, setScreenshot] = useState<string | null>(null)
   const [step, setStep] = useState<number | null>(null)
@@ -78,27 +83,28 @@ export function LivePreview({ runId, isRunning, selectedStep }: LivePreviewProps
       return
     }
 
-    const fetchDevtoolsTarget = async () => {
-      try {
-        const response = await fetch(`${remoteDebugBase}/json/list`)
-        if (!response.ok) {
-          throw new Error('DevTools endpoint unavailable')
-        }
+      const fetchDevtoolsTarget = async () => {
+        try {
+          const response = await fetch(`${remoteDebugBase}/json/list`)
+          if (!response.ok) {
+            throw new Error('DevTools endpoint unavailable')
+          }
 
-        const targets = await response.json()
-        const pageTarget = targets.find((target: any) => target.type === 'page') || targets[0]
+          const targets: DevtoolsTarget[] = await response.json()
+          const pageTarget = targets.find((target) => target.type === 'page') ?? targets[0]
 
-        if (pageTarget?.devtoolsFrontendUrl) {
-          setDevtoolsUrl(`${remoteDebugBase}${pageTarget.devtoolsFrontendUrl}`)
-          setRemoteError(null)
-        } else {
-          setRemoteError('No DevTools target available yet')
+          if (pageTarget?.devtoolsFrontendUrl) {
+            setDevtoolsUrl(`${remoteDebugBase}${pageTarget.devtoolsFrontendUrl}`)
+            setRemoteError(null)
+          } else {
+            setRemoteError('No DevTools target available yet')
+          }
+        } catch (error: unknown) {
+          console.error('Error connecting to DevTools:', error)
+          const message = error instanceof Error ? error.message : 'Unable to reach DevTools endpoint'
+          setRemoteError(message)
         }
-      } catch (error: any) {
-        console.error('Error connecting to DevTools:', error)
-        setRemoteError(error.message || 'Unable to reach DevTools endpoint')
       }
-    }
 
     fetchDevtoolsTarget()
     const interval = setInterval(fetchDevtoolsTarget, 5000)
@@ -106,31 +112,32 @@ export function LivePreview({ runId, isRunning, selectedStep }: LivePreviewProps
     return () => clearInterval(interval)
   }, [viewMode, remoteDebugBase])
 
-  const togglePause = async (paused: boolean) => {
-    setIsToggling(true)
-    setRemoteError(null)
+    const togglePause = async (paused: boolean) => {
+      setIsToggling(true)
+      setRemoteError(null)
 
-    try {
-      const response = await fetch('/api/agent/control', {
+      try {
+        const response = await fetch('/api/agent/control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paused }),
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to update agent state')
-      }
+        if (!response.ok) {
+          throw new Error('Failed to update agent state')
+        }
 
-      const data = await response.json()
-      setIsPaused(Boolean(data.paused))
-      setViewMode(Boolean(data.paused) ? 'interactive' : 'preview')
-    } catch (error: any) {
-      console.error('Error toggling agent state:', error)
-      setRemoteError(error.message || 'Unable to change agent state')
-    } finally {
-      setIsToggling(false)
+        const data = await response.json()
+        setIsPaused(Boolean(data.paused))
+        setViewMode(Boolean(data.paused) ? 'interactive' : 'preview')
+      } catch (error: unknown) {
+        console.error('Error toggling agent state:', error)
+        const message = error instanceof Error ? error.message : 'Unable to change agent state'
+        setRemoteError(message)
+      } finally {
+        setIsToggling(false)
+      }
     }
-  }
 
   if (!screenshot && viewMode !== 'interactive') {
     return (
@@ -187,13 +194,15 @@ export function LivePreview({ runId, isRunning, selectedStep }: LivePreviewProps
         </div>
       ) : (
         <div className="flex-1 bg-white rounded-b-lg overflow-auto p-4">
-          <div className="relative w-full h-full">
-            <img
-              src={screenshot ?? undefined}
-              alt={`Screenshot step ${step ?? 0}`}
-              className="w-full h-auto border border-gray-300 rounded shadow-lg"
-            />
-          </div>
+            <div className="relative w-full h-full">
+              <Image
+                src={screenshot ?? ''}
+                alt={`Screenshot step ${step ?? ''}`.trim() || 'Screenshot'}
+                className="w-full h-auto border border-gray-300 rounded shadow-lg"
+                width={1280}
+                height={720}
+              />
+            </div>
         </div>
       )}
       {remoteError && viewMode === 'interactive' && (

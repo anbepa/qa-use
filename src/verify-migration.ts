@@ -1,6 +1,7 @@
-import { LocalBrowserService } from './lib/services/local-browser.service'
-import { GeminiProvider } from './lib/services/gemini.provider'
 import dotenv from 'dotenv'
+
+import { GeminiProvider } from './lib/services/gemini.provider'
+import { LocalBrowserService } from './lib/services/local-browser.service'
 
 dotenv.config()
 

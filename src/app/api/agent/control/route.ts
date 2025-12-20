@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+
 import { AgentControlService } from '@/lib/services/agent-control.service'
 
 export async function GET() {
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
     AgentControlService.setPaused(body.paused)
 
     return NextResponse.json({ paused: AgentControlService.isPaused() })
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 }

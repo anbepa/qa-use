@@ -1,8 +1,9 @@
-import { GeminiProvider, AgentAction } from './gemini.provider'
-import { LocalBrowserService } from './local-browser.service'
-import { TestDefinition, TaskResponse } from '../testing/engine'
 import fs from 'fs/promises'
 import path from 'path'
+import { LocalBrowserService } from './local-browser.service'
+import { GeminiProvider } from './gemini.provider'
+import type { AgentAction } from './gemini.provider'
+import type { TaskResponse, TestDefinition } from '../testing/engine'
 import { db } from '../db/db'
 import * as schema from '../db/schema'
 import { eq } from 'drizzle-orm'
@@ -215,8 +216,9 @@ export class AgentLoopService {
                 await this.browser.saveStorageState(authPath)
                 break
             }
-          } catch (e: any) {
-            result = `Error: ${e.message}`
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Unknown error'
+            result = `Error: ${message}`
             batchResult = result // Mark batch as failed if one action fails
             // Optionally break here if we want to stop execution on first error
             // break 
@@ -237,7 +239,7 @@ export class AgentLoopService {
           })
 
           // Find the step that matches the current stepCount (by order)
-          const currentTestRunStep = testRunSteps.find((trs: any) => trs.testStep.order === stepCount + 1)
+          const currentTestRunStep = testRunSteps.find((trs) => trs.testStep.order === stepCount + 1)
 
           if (currentTestRunStep) {
             await db
@@ -255,10 +257,11 @@ export class AgentLoopService {
       }
 
       return { status: 'failing', steps: [], error: 'Max steps reached' }
-    } catch (e: any) {
-      return { status: 'failing', steps: [], error: e.message }
-    } finally {
-      await this.browser.close()
-    }
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : 'Unknown error'
+          return { status: 'failing', steps: [], error: message }
+        } finally {
+          await this.browser.close()
+        }
   }
 }

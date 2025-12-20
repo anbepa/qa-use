@@ -104,7 +104,7 @@ export function TestRunDetails({ run }: { run: TTestRun }) {
         <div className="col-span-1 flex flex-col">
           <SectionHeader title="Live Preview" actions={[]} />
 
-          <LivePreview liveUrl={liveUrl} status={status} sharedUrl={publicShareUrl} selectedStep={selectedStep} />
+          <LivePreview status={status} sharedUrl={publicShareUrl} selectedStep={selectedStep} />
         </div>
       </div>
 
@@ -114,12 +114,10 @@ export function TestRunDetails({ run }: { run: TTestRun }) {
 }
 
 export function LivePreview({
-  liveUrl,
   status,
   sharedUrl,
   selectedStep
 }: {
-  liveUrl: string | null | undefined
   status: TRunStatus
   sharedUrl: string | null | undefined
   selectedStep: number | null
