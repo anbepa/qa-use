@@ -25,7 +25,6 @@ services:
           target: /app/src
 
     environment:
-      - BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY:-}
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/qa-use
       #
       - WATCHPACK_POLLING=true

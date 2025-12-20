@@ -4,7 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      - BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY:-}
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/qa-use
       - INNGEST_DEV=1
       - INNGEST_BASE_URL=http://inngest:8288

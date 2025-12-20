@@ -16,7 +16,6 @@
 ### Prerequisites
 
 - 🐳 **Docker** & Docker Compose installed
-- 🔑 **BrowserUse API Key** (get yours at [cloud.browser-use.com](https://cloud.browser-use.com/billing))
 - 📧 **Resend API Key** (optional, for email notifications)
 
 ### ⚡ 3-Step Setup
@@ -26,12 +25,11 @@
 git clone https://github.com/browser-use/qa-use.git
 cd qa-use
 
-# 2️⃣ Configure environment variables
-cp .env.example .env
-# Edit .env and add your API keys (required for BrowserUse live preview).
-# Alternatively, export BROWSER_USE_API_KEY in your shell before running Docker if you don't want a local .env file.
+# 2️⃣ Configure environment variables (optional)
+# You can run the stack without BrowserUse; Live Preview will use the container's own browser feed.
+# If you have custom endpoints, export BROWSER_USE_BASE_URL before starting Docker.
 
-# 3️⃣ Launch the platform
+# 3️⃣ Launch the platform (exposes port 3000 for Live Preview)
 docker compose up
 ```
 
@@ -49,12 +47,9 @@ docker compose up
 Create a `.env` file with the following:
 
 ```env
-# Required: BrowserUse API Integration
-BROWSER_USE_API_KEY=your_browseruse_api_key_here
-
 # Live Preview
-# The UI embeds the live browser feed from BrowserUse at http://localhost:3000
-# Remember to expose port 3000 when running Docker so you can take/release control.
+# The UI embeds the live browser feed exposed from the Docker container at http://localhost:3000
+# You can override the embed origin with NEXT_PUBLIC_DEFAULT_LIVE_PREVIEW_URL.
 
 # Database Configuration
 DATABASE_URL=postgresql://postgres:postgres@postgres:5432/qa-use

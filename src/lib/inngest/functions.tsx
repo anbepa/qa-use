@@ -136,28 +136,6 @@ async function _startTestRun({ testRunId }: { testRunId: number }): Promise<numb
     })),
   }
 
-  if (!process.env.BROWSER_USE_API_KEY) {
-    await db
-      .update(schema.testRun)
-      .set({
-        status: 'failed',
-        error: 'BROWSER_USE_API_KEY is missing. Add it to your environment (.env) and restart docker compose.',
-        finishedAt: new Date(),
-      })
-      .where(eq(schema.testRun.id, dbTestRun.id))
-
-    if (dbTestRun.suiteRunId) {
-      await db
-        .update(schema.suiteRun)
-        .set({
-          status: 'failed',
-        })
-        .where(eq(schema.suiteRun.id, dbTestRun.suiteRunId))
-    }
-
-    throw new NonRetriableError('BROWSER_USE_API_KEY missing; cannot start BrowserUse task')
-  }
-
   // Start browser task
   const buTaskResponse = await client.POST('/api/v1/run-task', {
     body: {
@@ -166,9 +144,8 @@ async function _startTestRun({ testRunId }: { testRunId: number }): Promise<numb
       save_browser_data: false,
       task: getTaskPrompt(definition),
       //
-      // NOTE: Choose between o4-mini and o3. o3 is more expensive but more accurate.
-      // llm_model: 'o4-mini',
-      llm_model: 'o3',
+      // Default to Gemini so the stack can run without any external API key.
+      llm_model: 'gemini-2.0-flash',
       //
       use_adblock: true,
       use_proxy: true,
@@ -176,6 +153,17 @@ async function _startTestRun({ testRunId }: { testRunId: number }): Promise<numb
       structured_output_json: JSON.stringify(RESPONSE_JSON_SCHEMA),
     },
   })
+
+  if (buTaskResponse.error?.detail) {
+    const detail = buTaskResponse.error.detail
+    const detailStr = typeof detail === 'string' ? detail : JSON.stringify(detail)
+
+    if (detailStr.toLowerCase().includes('unauthorized') || detailStr.toLowerCase().includes('not authenticated')) {
+      throw new NonRetriableError(
+        'No se pudo iniciar la vista en vivo. Verifica que el servicio del navegador dentro del contenedor esté accesible (ajusta BROWSER_USE_BASE_URL) y que la LLM Gemini esté habilitada.',
+      )
+    }
+  }
 
   if (!buTaskResponse.data) {
     throw new RetryAfterError('Failed to start browser task', 1_000, {

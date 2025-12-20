@@ -114,7 +114,8 @@ export function LivePreview({
   status: TRunStatus
   sharedUrl: string | null | undefined
 }) {
-  const previewUrl = liveUrl ?? sharedUrl ?? null
+  const defaultPreviewUrl = process.env.NEXT_PUBLIC_DEFAULT_LIVE_PREVIEW_URL || 'http://localhost:3000'
+  const previewUrl = liveUrl ?? sharedUrl ?? defaultPreviewUrl
   const [hasControl, setHasControl] = useState(false)
   const isLive = status === 'running' || status === 'pending'
 
@@ -201,8 +202,7 @@ function TestRunPlaceholder() {
       <div className="text-center">
         <p className="font-medium mb-2">Live preview not available</p>
         <p className="text-sm">
-          Ensure the run is active, the BrowserUse API key is configured in <code>.env</code>, and the container is exposing port
-          3000 so the browser feed can load.
+          Ensure the run is active and the container is exposing port 3000 so the browser feed from Docker can load.
         </p>
       </div>
     </Fragment>
