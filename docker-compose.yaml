@@ -9,7 +9,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/qa-use
       - INNGEST_DEV=1
       - INNGEST_BASE_URL=http://inngest:8288
-      - BROWSER_WS_ENDPOINT=ws://browser:4444
+      - BROWSER_WS_ENDPOINT=http://browser:4444
       - BROWSER_DEVTOOLS_WS=http://browser:9222
       - NEXT_PUBLIC_LIVE_PREVIEW_URL=http://localhost:7900/?resize=scale&autoconnect=1&view_only=0
       - HEADLESS=${HEADLESS:-false}
@@ -44,7 +44,7 @@ services:
       - "9222:9222"
     networks:
       - qause-network
-    entrypoint: ["bash", "-lc", "/usr/bin/chromium --remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --disable-dev-shm-usage --disable-gpu --no-sandbox --user-data-dir=/home/seluser/chrome-data & /opt/bin/entry_point.sh"]
+    entrypoint: ["bash", "-c", "(until pgrep fluxbox; do sleep 1; done; /usr/bin/chromium --remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --disable-dev-shm-usage --disable-gpu --no-sandbox --user-data-dir=/home/seluser/chrome-data --display=:99) & /opt/bin/entry_point.sh"]
 
 
   inngest:
