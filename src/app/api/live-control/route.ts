@@ -58,7 +58,7 @@ const transitions: Record<
     }
 
     return {
-      next: { ...state, state: 'HUMAN_CONTROL', actor: 'human', lastAction: 'reject_ai_action', message: null },
+      next: { ...state, state: 'HUMAN_CONTROL', actor: 'human', lastAction: 'reject_ai_action', message: undefined },
       ok: true,
     }
   },
