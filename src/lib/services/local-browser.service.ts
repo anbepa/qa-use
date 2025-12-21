@@ -76,6 +76,10 @@ export class LocalBrowserService {
       console.log('[LocalBrowser] No auth state found, starting fresh session')
     }
 
+    if (!this.browser) {
+      throw new Error('Browser failed to launch or connect')
+    }
+
     this.context = await this.browser.newContext({
       ignoreHTTPSErrors,
       storageState // Inject saved state if available
