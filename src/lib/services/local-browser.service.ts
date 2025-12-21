@@ -8,16 +8,50 @@ export class LocalBrowserService {
   private page: Page | null = null
 
   async launch(headless: boolean = true) {
-    const ignoreHTTPSErrors = process.env.IGNORE_HTTPS_ERRORS === 'true' || true
+    const ignoreHTTPSErrors = process.env.IGNORE_HTTPS_ERRORS !== 'false'
     const wsEndpoint = process.env.BROWSER_WS_ENDPOINT
+    const devtoolsBase = process.env.BROWSER_DEVTOOLS_WS
 
     console.log(`[LocalBrowser] Launching with ignoreHTTPSErrors: ${ignoreHTTPSErrors}`)
 
-    if (wsEndpoint) {
+    let connected = false
+
+    if (devtoolsBase) {
+      const versionUrl = devtoolsBase.endsWith('/json/version')
+        ? devtoolsBase
+        : `${devtoolsBase.replace(/\/$/, '')}/json/version`
+
+      try {
+        console.log(`[LocalBrowser] Resolving DevTools endpoint from ${versionUrl}`)
+        const response = await fetch(versionUrl)
+
+        if (!response.ok) {
+          throw new Error(`Unexpected status ${response.status}`)
+        }
+
+        const payload = (await response.json()) as { webSocketDebuggerUrl?: string }
+        const devtoolsWs = payload.webSocketDebuggerUrl
+
+        if (!devtoolsWs) {
+          throw new Error('webSocketDebuggerUrl missing in DevTools response')
+        }
+
+        console.log(`[LocalBrowser] Connecting over CDP to ${devtoolsWs}`)
+        this.browser = await chromium.connectOverCDP(devtoolsWs)
+        connected = true
+      } catch (error) {
+        console.error('[LocalBrowser] Failed to connect via DevTools endpoint:', error)
+      }
+    }
+
+    if (!connected && wsEndpoint) {
       console.log(`[LocalBrowser] Connecting to remote browser at ${wsEndpoint}`)
       // Para Selenium Grid / Seleniarm usamos connect()
       this.browser = await chromium.connect(wsEndpoint)
-    } else {
+      connected = true
+    }
+
+    if (!connected) {
       const args = [
         '--incognito',
         '--ignore-certificate-errors',
