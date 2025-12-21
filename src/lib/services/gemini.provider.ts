@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import type { SetCookieParam } from 'playwright'
 
   export interface AgentAction {
   action: 'click' | 'type' | 'wait' | 'done' | 'fail' | 'reload' | 'open_tab' | 'switch_tab' | 'close_tab' | 'go_back' | 'go_forward' | 'dblclick' | 'hover' | 'check' | 'uncheck' | 'fill' | 'press' | 'select_option' | 'upload_file' | 'mouse_move' | 'mouse_down' | 'mouse_up' | 'mouse_click' | 'mouse_wheel' | 'keyboard_type' | 'keyboard_press' | 'keyboard_down' | 'keyboard_up' | 'evaluate' | 'add_cookies' | 'clear_cookies' | 'set_geolocation' | 'assert' | 'save_auth'
@@ -15,7 +16,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
   deltaX?: number
   deltaY?: number
   script?: string
-    cookies?: Array<Record<string, unknown>>
+    cookies?: SetCookieParam[]
   latitude?: number
   longitude?: number
   assertionType?: 'visible' | 'hidden' | 'enabled' | 'disabled' | 'text' | 'value'
