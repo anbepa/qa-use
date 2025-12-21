@@ -31,6 +31,7 @@ Eventos clave: `request_ai`, `propose_action`, `approve_action`, `reject_action`
 ### Backend Orquestador (Node.js)
 - **API WebSocket/SSE** para estado y eventos en tiempo real.
 - **Control lock (mutex)** por sesión de navegador; garantiza exclusión en `AI_EXECUTING`.
+- **Endpoint REST `/api/live-control`**: expone `GET`/`POST` in-memory para sincronizar el estado `HUMAN_CONTROL → AI_PENDING → AI_EXECUTING` y las acciones prioritarias del humano (takeover/interrupt/reject).
 - **State machine** con guardas para transiciones válidas y rollback a `HUMAN_CONTROL` ante interrupción/timeout.
 - **Middleware de interrupción**: buffer de eventos de input humano; si llega mientras Playwright ejecuta → cancela paso (AbortController/timeout) y emite `action_interrupt`.
 - **Playwright MCP executor**: ejecuta acciones atómicas traducidas desde la propuesta (click, type, fill, press, waitForSelector). Sin bucles; cada acción tiene timeout corto (p.ej. 8–10s).

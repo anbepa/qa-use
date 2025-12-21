@@ -7,6 +7,7 @@ services:
     environment:
       - NODE_ENV=development
       - BROWSER_DEVTOOLS_WS=ws://browser:9222
+      - NEXT_PUBLIC_LIVE_PREVIEW_URL=http://localhost:7900/?resize=scale&autoconnect=1&view_only=0
     depends_on:
       - browser
     networks:
