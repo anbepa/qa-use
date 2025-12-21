@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import type { BrowserContext } from 'playwright'
 
 export interface AgentAction {
   action: 'click' | 'type' | 'wait' | 'done' | 'fail' | 'reload' | 'open_tab' | 'switch_tab' | 'close_tab' | 'go_back' | 'go_forward' | 'dblclick' | 'hover' | 'check' | 'uncheck' | 'fill' | 'press' | 'select_option' | 'upload_file' | 'mouse_move' | 'mouse_down' | 'mouse_up' | 'mouse_click' | 'mouse_wheel' | 'keyboard_type' | 'keyboard_press' | 'keyboard_down' | 'keyboard_up' | 'evaluate' | 'add_cookies' | 'clear_cookies' | 'set_geolocation' | 'assert' | 'save_auth'
@@ -15,7 +16,7 @@ export interface AgentAction {
   deltaX?: number
   deltaY?: number
   script?: string
-  cookies?: any[]
+  cookies?: Parameters<BrowserContext['addCookies']>[0]
   latitude?: number
   longitude?: number
   assertionType?: 'visible' | 'hidden' | 'enabled' | 'disabled' | 'text' | 'value'
@@ -25,14 +26,14 @@ export interface AgentAction {
 
 export class GeminiProvider {
   private genAI: GoogleGenerativeAI
-  private model: any
+  private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey)
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
   }
 
-  async generateResponse(prompt: string, context: any): Promise<string> {
+  async generateResponse(prompt: string, context: Record<string, unknown>): Promise<string> {
     const chat = this.model.startChat({
       history: [
         {
@@ -46,7 +47,7 @@ export class GeminiProvider {
     return result.response.text()
   }
 
-  async decideAction(dom: string, goal: string, history: any[]): Promise<AgentAction | AgentAction[]> {
+  async decideAction(dom: string, goal: string, history: Array<Record<string, unknown>>): Promise<AgentAction | AgentAction[]> {
     const prompt = `
       You are a browser automation agent.
       Goal: ${goal}
@@ -79,20 +80,20 @@ export class GeminiProvider {
       }
     `
 
-    let responseText: string;
+    let responseText: string = '';
     const maxRetries = 5
     let retryCount = 0
-    let baseDelay = 5000 // Increased to 5 seconds
+    const baseDelay = 5000 // Increased to 5 seconds
 
     while (retryCount < maxRetries) {
       try {
         const result = await this.model.generateContent(prompt)
         responseText = result.response.text()
         break; // Exit loop on successful response
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Check for 429 error (rate limit)
         // The Gemini API might return a 429 status directly or embed it in the error message.
-        if (error.message?.includes('429') || error.status === 429) {
+        if (error instanceof Error && (error.message?.includes('429') || (error as { status?: number }).status === 429)) {
           retryCount++
           if (retryCount === maxRetries) {
             console.error(`[GeminiProvider] Max retries (${maxRetries}) exceeded for 429 error.`)
@@ -111,7 +112,7 @@ export class GeminiProvider {
     // If the loop completes without breaking, it means max retries were exceeded for a 429 error
     // and the last `throw error` would have been executed.
     // This line should theoretically not be reached if an error occurred or responseText was set.
-    if (!responseText!) {
+    if (!responseText) {
       throw new Error('Failed to get a response from Gemini after multiple retries.')
     }
 
@@ -129,7 +130,7 @@ export class GeminiProvider {
       }
 
       return JSON.parse(cleanJson)
-    } catch (e) {
+    } catch (_) {
       console.error('Failed to parse Gemini response:', responseText)
       // Try to extract the reason from the response text
       const reasonMatch = responseText.match(/"reason":\s*"([^"]+)"/i)

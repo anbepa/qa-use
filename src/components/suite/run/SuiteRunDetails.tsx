@@ -9,7 +9,7 @@ import { RunStatusIcon } from '@/components/shared/RunStatusIcon'
 import { SectionHeader } from '@/components/shared/SectionHeader'
 import { formatDate } from '@/components/shared/utils'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { DeepRequired } from '@/lib/types'
+import type { DeepRequired } from '@/lib/types'
 
 export function SuiteRunDetails({ run }: { run: TSuiteRun }) {
   const { nOfPassingTests, nOfFailedTests } = useMemo(() => {

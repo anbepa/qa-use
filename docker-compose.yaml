@@ -9,11 +9,12 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/qa-use
       - INNGEST_DEV=1
       - INNGEST_BASE_URL=http://inngest:8288
-
-      - HEADLESS=${HEADLESS:-true}
+      - BROWSER_WS_ENDPOINT=ws://browser:4444
+      - NEXT_PUBLIC_LIVE_PREVIEW_URL=http://localhost:7900/?resize=scale&autoconnect=1&view_only=0
+      - HEADLESS=${HEADLESS:-false}
       - VIDEO=${VIDEO:-false}
       - MAX_AGENT_STEPS=${MAX_AGENT_STEPS:-30}
-      - IGNORE_HTTPS_ERRORS=${IGNORE_HTTPS_ERRORS:-false}
+      - IGNORE_HTTPS_ERRORS=${IGNORE_HTTPS_ERRORS:-true}
     ports:
       - '3000:3000'
     depends_on:
@@ -21,10 +22,28 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      browser:
+        condition: service_started
     networks:
       - qause-network
     volumes:
       - ./public/evidences:/app/public/evidences
+
+  browser:
+    image: seleniarm/standalone-chromium:latest
+    shm_size: 2gb
+    environment:
+      - SE_ENABLE_VNC=true
+      - SE_VNC_NO_PASSWORD=1
+      - SE_NODE_MAX_SESSIONS=1
+      - SCREEN_WIDTH=1280
+      - SCREEN_HEIGHT=900
+    ports:
+      - "7900:7900"
+    networks:
+      - qause-network
+    # No necesitamos entrypoint custom en seleniarm, ya viene configurado para CDP en el puerto 4444 o podemos usar flags
+
 
   inngest:
     image: inngest/inngest

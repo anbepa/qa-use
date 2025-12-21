@@ -19,8 +19,7 @@ export function TestsTab({
 }: {
   suite: TSuite
   suiteId: number
-
-  duplicate: (testId: number, formData: FormData) => void
+  duplicate: (..._: [testId: number, formData: FormData]) => void
 }) {
   return (
     <Table>
@@ -54,7 +53,7 @@ const TestRow = ({
 }: {
   test: TSuite['tests'][number]
   suiteId: number
-  duplicate: (testId: number, formData: FormData) => void
+  duplicate: (..._: [testId: number, formData: FormData]) => void
 }) => {
   const action = duplicate.bind(null, test.id)
 

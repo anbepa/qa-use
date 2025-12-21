@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs/promises'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import path from 'path'
 
 export async function GET(request: NextRequest) {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'no-cache',
       },
     })
-  } catch (error) {
+  } catch (_) {
     return NextResponse.json({ error: 'Screenshot not found' }, { status: 404 })
   }
 }

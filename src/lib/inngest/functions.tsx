@@ -1,15 +1,13 @@
 import { eq, inArray } from 'drizzle-orm'
-import { NonRetriableError, RetryAfterError } from 'inngest'
+import { NonRetriableError } from 'inngest'
 
 import { db } from '../db/db'
 import * as schema from '../db/schema'
 import { resend } from '../resend/client'
 import { SuiteFailedEmail } from '../resend/emails/SuiteFailedEmail'
-import type { TestDefinition } from '../testing/engine'
-import { getTaskPrompt, getTaskResponse, RESPONSE_JSON_SCHEMA } from '../testing/engine'
-import { ExhaustiveSwitchCheck } from '../types'
-import { inngest } from './client'
 import { AgentLoopService } from '../services/agent-loop.service'
+import type { TestDefinition } from '../testing/engine'
+import { inngest } from './client'
 
 // Functions -----------------------------------------------------------------
 

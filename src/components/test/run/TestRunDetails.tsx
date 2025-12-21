@@ -2,9 +2,9 @@
 
 import { CheckCircle, Monitor } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
-import { LivePreview as LivePreviewComponent } from '@/components/LivePreview'
 
 import type { TTestRun } from '@/app/suite/[suiteId]/test/[testId]/run/[testRunId]/loader'
+import { LivePreview as LivePreviewComponent } from '@/components/LivePreview'
 import { Polling } from '@/components/Polling'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
@@ -104,7 +104,7 @@ export function TestRunDetails({ run }: { run: TTestRun }) {
         <div className="col-span-1 flex flex-col">
           <SectionHeader title="Live Preview" actions={[]} />
 
-          <LivePreview liveUrl={liveUrl} status={status} sharedUrl={publicShareUrl} selectedStep={selectedStep} />
+          <LivePreview liveUrl={liveUrl} status={status} sharedUrl={publicShareUrl} />
         </div>
       </div>
 
@@ -117,31 +117,19 @@ export function LivePreview({
   liveUrl,
   status,
   sharedUrl,
-  selectedStep
 }: {
   liveUrl: string | null | undefined
   status: TRunStatus
   sharedUrl: string | null | undefined
-  selectedStep: number | null
 }) {
-  // Extract runId from the parent component context
-  // This is a workaround - ideally we'd pass runId as a prop
-  const runIdMatch = typeof window !== 'undefined' ? window.location.pathname.match(/\/run\/(\d+)/) : null
-  const runId = runIdMatch ? parseInt(runIdMatch[1], 10) : null
-
   return (
-    <div
-      className="w-full flex flex-col items-center justify-center relative overflow-hidden border border-gray-300 rounded-xs"
-      style={{ aspectRatio: '1280/1050', minHeight: '400px' }}
-    >
-      {selectedStep !== null && runId ? (
-        <LivePreviewComponent runId={runId} isRunning={false} selectedStep={selectedStep} />
-      ) : status === 'running' && runId ? (
-        <LivePreviewComponent runId={runId} isRunning={true} />
-      ) : status === 'pending' || status === 'running' ? (
+    <div className="w-full flex flex-col items-center justify-center relative overflow-hidden rounded-xs">
+      <LivePreviewComponent liveUrl={liveUrl ?? undefined} />
+
+      {status === 'pending' || status === 'running' ? (
         <TestRunPlaceholder />
       ) : (
-        <TestFinishedPlaceholder sharedUrl={sharedUrl} runId={runId} />
+        <TestFinishedPlaceholder sharedUrl={sharedUrl} />
       )}
     </div>
   )
@@ -150,36 +138,28 @@ export function LivePreview({
 function TestRunPlaceholder() {
   return (
     <Fragment>
-      <Monitor className="w-12 h-12 mb-4 text-gray-300" />
+      <Monitor className="w-12 h-12 my-4 text-gray-300" />
       <div className="text-center">
-        <p className="font-medium mb-2">Live preview not available</p>
-        <p className="text-sm">Preview will appear when test is running</p>
+        <p className="font-medium mb-2">Live preview listo</p>
+        <p className="text-sm">Conecta a noVNC del contenedor cuando la ejecución inicie.</p>
       </div>
     </Fragment>
   )
 }
 
-function TestFinishedPlaceholder({ sharedUrl, runId }: { sharedUrl: string | null | undefined; runId: number | null }) {
+function TestFinishedPlaceholder({ sharedUrl }: { sharedUrl: string | null | undefined }) {
   return (
     <Fragment>
-      {runId ? (
-        <div className="w-full h-full">
-          <LivePreviewComponent runId={runId} isRunning={false} />
-        </div>
-      ) : (
-        <>
-          <CheckCircle className="w-12 h-12 mb-4 text-gray-300" />
-          <div className="text-center">
-            <p className="font-medium mb-2">Test completed</p>
+      <CheckCircle className="w-12 h-12 my-4 text-gray-300" />
+      <div className="text-center">
+        <p className="font-medium mb-2">Test completed</p>
 
-            {sharedUrl && (
-              <a href={sharedUrl} className="text-blue-500 hover:text-blue-700" target="_blank">
-                View Agent Run
-              </a>
-            )}
-          </div>
-        </>
-      )}
+        {sharedUrl && (
+          <a href={sharedUrl} className="text-blue-500 hover:text-blue-700" target="_blank">
+            View Agent Run
+          </a>
+        )}
+      </div>
     </Fragment>
   )
 }

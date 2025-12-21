@@ -1,0 +1,48 @@
+version: '3.9'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=development
+      - BROWSER_DEVTOOLS_WS=ws://browser:9222
+      - NEXT_PUBLIC_LIVE_PREVIEW_URL=http://localhost:7900/?resize=scale&autoconnect=1&view_only=0
+    depends_on:
+      - browser
+    networks:
+      - live-preview
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./public/evidences:/app/public/evidences
+
+  browser:
+    image: selenium/standalone-chrome:123.0
+    shm_size: 2gb
+    environment:
+      - SE_ENABLE_VNC=true
+      - SE_VNC_NO_PASSWORD=1
+      - SE_NODE_MAX_SESSIONS=1
+      - SCREEN_WIDTH=1440
+      - SCREEN_HEIGHT=900
+      - SCREEN_DEPTH=24
+      - VNC_PORT=5900
+      - NOVNC_PORT=7900
+      - START_XVFB=true
+      - START_X11VNC=true
+      - START_WEBRTC=false
+      - SE_OPTS=--max-sessions 1
+    ports:
+      - "5900:5900"   # VNC para control humano
+      - "7900:7900"   # noVNC para live preview web
+      - "9222:9222"   # DevTools para Playwright MCP
+    networks:
+      - live-preview
+    volumes:
+      - ./public/evidences:/home/seluser/evidences
+    entrypoint: ["bash", "-lc", "google-chrome --remote-debugging-port=9222 --disable-dev-shm-usage --disable-gpu --no-sandbox --user-data-dir=/home/seluser/chrome-data & /opt/bin/entry_point.sh"]
+
+networks:
+  live-preview:
+    driver: bridge
