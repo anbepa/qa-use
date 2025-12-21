@@ -73,14 +73,18 @@ const transitions: Record<
   }),
 }
 
-const applyAction = (action: string) => {
+type ApplyActionResult =
+  | { ok: true; snapshot: ControlStateSnapshot }
+  | { ok: false; error: string }
+
+const applyAction = (action: string): ApplyActionResult => {
   const transition = transitions[action]
   if (!transition) {
-    return { ok: false, error: 'Acción no soportada' as const }
+    return { ok: false, error: 'Acción no soportada' }
   }
 
   const result = transition(sessionState)
-  if (!result.ok) return result
+  if (!result.ok) return { ok: false, error: result.error ?? 'Transición inválida' }
 
   sessionState.state = result.next.state
   sessionState.actor = result.next.actor
