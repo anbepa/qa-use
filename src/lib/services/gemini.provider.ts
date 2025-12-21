@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import type { SetCookieParam } from 'playwright'
+import type { BrowserContext } from 'playwright'
 
-  export interface AgentAction {
+export interface AgentAction {
   action: 'click' | 'type' | 'wait' | 'done' | 'fail' | 'reload' | 'open_tab' | 'switch_tab' | 'close_tab' | 'go_back' | 'go_forward' | 'dblclick' | 'hover' | 'check' | 'uncheck' | 'fill' | 'press' | 'select_option' | 'upload_file' | 'mouse_move' | 'mouse_down' | 'mouse_up' | 'mouse_click' | 'mouse_wheel' | 'keyboard_type' | 'keyboard_press' | 'keyboard_down' | 'keyboard_up' | 'evaluate' | 'add_cookies' | 'clear_cookies' | 'set_geolocation' | 'assert' | 'save_auth'
   selector?: string
   text?: string
@@ -16,7 +16,7 @@ import type { SetCookieParam } from 'playwright'
   deltaX?: number
   deltaY?: number
   script?: string
-    cookies?: SetCookieParam[]
+  cookies?: Parameters<BrowserContext['addCookies']>[0]
   latitude?: number
   longitude?: number
   assertionType?: 'visible' | 'hidden' | 'enabled' | 'disabled' | 'text' | 'value'
@@ -25,15 +25,15 @@ import type { SetCookieParam } from 'playwright'
 }
 
 export class GeminiProvider {
-    private genAI: GoogleGenerativeAI
-    private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>
+  private genAI: GoogleGenerativeAI
+  private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey)
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
   }
 
-    async generateResponse(prompt: string, context: Record<string, unknown>): Promise<string> {
+  async generateResponse(prompt: string, context: Record<string, unknown>): Promise<string> {
     const chat = this.model.startChat({
       history: [
         {
@@ -47,7 +47,7 @@ export class GeminiProvider {
     return result.response.text()
   }
 
-    async decideAction(dom: string, goal: string, history: Array<Record<string, unknown>>): Promise<AgentAction | AgentAction[]> {
+  async decideAction(dom: string, goal: string, history: Array<Record<string, unknown>>): Promise<AgentAction | AgentAction[]> {
     const prompt = `
       You are a browser automation agent.
       Goal: ${goal}
@@ -80,7 +80,7 @@ export class GeminiProvider {
       }
     `
 
-    let responseText: string;
+    let responseText: string = '';
     const maxRetries = 5
     let retryCount = 0
     const baseDelay = 5000 // Increased to 5 seconds
@@ -109,12 +109,12 @@ export class GeminiProvider {
       }
     }
 
-      // If the loop completes without breaking, it means max retries were exceeded for a 429 error
-      // and the last `throw error` would have been executed.
-      // This line should theoretically not be reached if an error occurred or responseText was set.
-      if (!responseText) {
-        throw new Error('Failed to get a response from Gemini after multiple retries.')
-      }
+    // If the loop completes without breaking, it means max retries were exceeded for a 429 error
+    // and the last `throw error` would have been executed.
+    // This line should theoretically not be reached if an error occurred or responseText was set.
+    if (!responseText) {
+      throw new Error('Failed to get a response from Gemini after multiple retries.')
+    }
 
     try {
       // Clean up markdown code blocks if present

@@ -7,23 +7,30 @@ export class LocalBrowserService {
   private context: BrowserContext | null = null
   private page: Page | null = null
 
-    async launch(headless: boolean = true) {
-    const ignoreHTTPSErrors = true // Forced as per user request
+  async launch(headless: boolean = true) {
+    const ignoreHTTPSErrors = process.env.IGNORE_HTTPS_ERRORS === 'true' || true
+    const wsEndpoint = process.env.BROWSER_WS_ENDPOINT
+
     console.log(`[LocalBrowser] Launching with ignoreHTTPSErrors: ${ignoreHTTPSErrors}`)
 
-    const args = [
-      '--incognito',
-      '--ignore-certificate-errors',
-      '--ignore-certificate-errors-spki-list', // Helps with some specific cert errors
-      '--no-sandbox', // Often needed in Docker/CI
-      '--disable-setuid-sandbox'
-    ]
-    console.log(`[LocalBrowser] Launching chromium with args: ${JSON.stringify(args)}`)
-
-    this.browser = await chromium.launch({
-      headless,
-      args
-    })
+    if (wsEndpoint) {
+      console.log(`[LocalBrowser] Connecting to remote browser at ${wsEndpoint}`)
+      // Para Selenium Grid / Seleniarm usamos connect()
+      this.browser = await chromium.connect(wsEndpoint)
+    } else {
+      const args = [
+        '--incognito',
+        '--ignore-certificate-errors',
+        '--ignore-certificate-errors-spki-list',
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+      ]
+      console.log(`[LocalBrowser] Launching local chromium with args: ${JSON.stringify(args)}`)
+      this.browser = await chromium.launch({
+        headless,
+        args
+      })
+    }
 
     const authPath = path.join(process.cwd(), 'data', 'auth.json')
     let storageState: string | undefined = undefined
