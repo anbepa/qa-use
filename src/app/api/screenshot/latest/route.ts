@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs/promises'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import path from 'path'
 
 export async function GET(request: NextRequest) {
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
       step: parseInt(step),
       totalSteps: pngFiles.length,
     })
-  } catch (error) {
+  } catch (_) {
     return NextResponse.json({ screenshot: null, step: null })
   }
 }

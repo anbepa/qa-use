@@ -34,15 +34,21 @@ export function SuiteDetails({
   setCronCadence,
   setNotificationsEmailAddress,
   duplicateTest,
-}: {
-  suite: TSuite
-  runSuite: (formData: FormData) => Promise<void>
-  deleteSuite: (formData: FormData) => Promise<void>
-  createTest: (formData: FormData) => Promise<void>
-  setCronCadence: (cadence: 'hourly' | 'daily' | null, formData: FormData) => Promise<void>
-  setNotificationsEmailAddress: (formData: FormData) => Promise<void>
-  duplicateTest: (testId: number, formData: FormData) => Promise<void>
-}) {
+  }: {
+    suite: TSuite
+
+    runSuite: (_: FormData) => Promise<void>
+
+    deleteSuite: (_: FormData) => Promise<void>
+
+    createTest: (_: FormData) => Promise<void>
+
+    setCronCadence: (..._: [cadence: 'hourly' | 'daily' | null, formData: FormData]) => Promise<void>
+
+    setNotificationsEmailAddress: (_: FormData) => Promise<void>
+
+    duplicateTest: (..._: [testId: number, formData: FormData]) => Promise<void>
+  }) {
   const [_cadence, _setCadence] = useState<'hourly' | 'daily' | null>(suite.cronCadence)
 
   const cadence = useMemo(() => {
@@ -178,7 +184,8 @@ export function SuiteDetails({
   )
 }
 
-function CreateTestDialog({ createTest }: { suiteId: number; createTest: (formData: FormData) => Promise<void> }) {
+function CreateTestDialog({ createTest }: { suiteId: number;
+  createTest: (_: FormData) => Promise<void> }) {
   return (
     <Dialog>
       <DialogTrigger asChild>

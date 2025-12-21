@@ -18,8 +18,9 @@ export function TestDetails({
   deleteTest,
 }: {
   test: TTest
-  runTest: (formData: FormData) => Promise<void>
-  deleteTest: (formData: FormData) => Promise<void>
+  runTest: (_: FormData) => Promise<void>
+
+  deleteTest: (_: FormData) => Promise<void>
 }) {
   const poll = useMemo(() => test.runs.some((run) => run.status === 'pending'), [test.runs])
 

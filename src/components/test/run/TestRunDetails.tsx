@@ -2,9 +2,9 @@
 
 import { CheckCircle, Monitor } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
-import { LivePreview as LivePreviewComponent } from '@/components/LivePreview'
 
 import type { TTestRun } from '@/app/suite/[suiteId]/test/[testId]/run/[testRunId]/loader'
+import { LivePreview as LivePreviewComponent } from '@/components/LivePreview'
 import { Polling } from '@/components/Polling'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'

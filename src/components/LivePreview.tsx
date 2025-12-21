@@ -1,7 +1,7 @@
 'use client'
 
-import { type ComponentType, useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Play, ShieldCheck, ShieldOff, Square } from 'lucide-react'
+import { type ComponentType, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -168,8 +168,8 @@ export function LivePreview({ liveUrl, title = 'Live Preview (noVNC en tiempo re
             comparten la misma sesión y cualquier acción de la IA requiere autorización previa.
           </p>
           <p className="mt-1">
-            Si el humano interactúa y necesita prioridad inmediata, pulse "Tomar control" o "Interrumpir IA". La IA nunca ejecuta bucles
-            continuos; solo acciones atómicas.
+            Si el humano interactúa y necesita prioridad inmediata, pulse &quot;Tomar control&quot; o &quot;Interrumpir IA&quot;. La IA nunca ejecuta
+            bucles continuos; solo acciones atómicas.
           </p>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { CheckCircle, Loader2, XCircle, Circle } from 'lucide-react'
+import { CheckCircle, Circle, Loader2, XCircle } from 'lucide-react'
 
 import type * as schema from '@/lib/db/schema'
 import { ExhaustiveSwitchCheck } from '@/lib/types'

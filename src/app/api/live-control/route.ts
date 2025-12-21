@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
 import { type ControlState } from '@/components/LivePreview'
 
@@ -20,10 +21,10 @@ const sessionState: ControlStateSnapshot = {
 
 const transitions: Record<
   string,
-  (state: ControlStateSnapshot) => { next: ControlStateSnapshot; ok: boolean; error?: string }
+  (_: ControlStateSnapshot) => { next: ControlStateSnapshot; ok: boolean; error?: string }
 > = {
-  human_takeover: () => ({
-    next: { ...sessionState, state: 'HUMAN_CONTROL', actor: 'human', lastAction: 'human_takeover' },
+  human_takeover: (state) => ({
+    next: { ...state, state: 'HUMAN_CONTROL', actor: 'human', lastAction: 'human_takeover' },
     ok: true,
   }),
   request_ai: (state) => {

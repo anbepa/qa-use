@@ -194,7 +194,7 @@ export async function setNotificationsEmailAddressAction(suiteId: number, formDa
   redirect(`/suite/${data.suiteId}`, RedirectType.push)
 }
 
-export async function duplicateTestAction(suiteId: number, testId: number, _form: FormData) {
+export async function duplicateTestAction(suiteId: number, testId: number, _: FormData) {
   const test = await db.query.test.findFirst({
     where: eq(schema.test.id, testId),
     with: {
@@ -206,7 +206,7 @@ export async function duplicateTestAction(suiteId: number, testId: number, _form
     throw new Error(`Test not found: ${testId}`)
   }
 
-  const _ = await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     const [newTest] = await tx
       .insert(schema.test)
       .values({
