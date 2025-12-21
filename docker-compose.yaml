@@ -9,13 +9,14 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/qa-use
       - INNGEST_DEV=1
       - INNGEST_BASE_URL=http://inngest:8288
-      - BROWSER_WS_ENDPOINT=http://browser:4444
-      - BROWSER_DEVTOOLS_WS=http://browser:9222
+      - BROWSER_WS_ENDPOINT=ws://browser:9223
+      - BROWSER_DEVTOOLS_WS=http://browser:9223
       - NEXT_PUBLIC_LIVE_PREVIEW_URL=http://localhost:7900/?resize=scale&autoconnect=1&view_only=0
       - HEADLESS=${HEADLESS:-false}
       - VIDEO=${VIDEO:-false}
       - MAX_AGENT_STEPS=${MAX_AGENT_STEPS:-30}
-      - IGNORE_HTTPS_ERRORS=${IGNORE_HTTPS_ERRORS:-true}
+      - IGNORE_HTTPS_ERRORS=true
+      - NEXT_PUBLIC_APP_URL=http://app:3000
     ports:
       - '3000:3000'
     depends_on:
@@ -42,9 +43,11 @@ services:
     ports:
       - "7900:7900"
       - "9222:9222"
+      - "9223:9223"
     networks:
       - qause-network
-    entrypoint: ["bash", "-c", "(until pgrep fluxbox; do sleep 1; done; /usr/bin/chromium --remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --disable-dev-shm-usage --disable-gpu --no-sandbox --user-data-dir=/home/seluser/chrome-data --display=:99) & /opt/bin/entry_point.sh"]
+    # Túnel inteligente que modifica el Host Header para saltar la seguridad de Chromium
+    entrypoint: ["bash", "-c", "(/opt/bin/entry_point.sh &); sleep 5; (chromium --remote-debugging-port=9222 --no-sandbox --disable-dev-shm-usage --display=:99 --user-data-dir=/home/seluser/chrome-data --remote-allow-origins=* &); sleep 2; python3 -c 'import socket,threading; s1=socket.socket(socket.AF_INET,socket.SOCK_STREAM); s1.bind((\"0.0.0.0\",9223)); s1.listen(5); print(\"Bridge 9223->9222 with Host rewrite active\");\ndef f(src,dst,rewrite=False):\n try:\n  while True:\n   d=src.recv(4096)\n   if not d: break\n   if rewrite: d=d.replace(b\"browser:9223\", b\"localhost:9222\")\n   dst.send(d)\n except: pass\n finally: src.close(); dst.close();\nwhile True:\n c,a=s1.accept(); s2=socket.socket(socket.AF_INET,socket.SOCK_STREAM); s2.connect((\"127.0.0.1\",9222));\n threading.Thread(target=f,args=(c,s2,True)).start(); threading.Thread(target=f,args=(s2,c)).start()'"]
 
 
   inngest:

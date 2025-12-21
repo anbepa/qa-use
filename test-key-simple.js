@@ -8,7 +8,7 @@ const apiKey = process.env.GEMINI_API_KEY;
 console.log(`Testing API Key: ${apiKey ? apiKey.substring(0, 10) + '...' : 'Not Found'}`);
 
 const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' }, { apiVersion: 'v1beta' });
 
 async function run() {
   try {

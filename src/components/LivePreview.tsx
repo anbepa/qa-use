@@ -162,16 +162,7 @@ export function LivePreview({ liveUrl, title = 'Live Preview (noVNC en tiempo re
           </div>
         )}
 
-        <div className="text-xs text-gray-500 leading-relaxed">
-          <p>
-            Live Preview consume el navegador real en Docker (Chrome + Xvfb + VNC/noVNC) sin capturas estáticas ni video. Humano e IA
-            comparten la misma sesión y cualquier acción de la IA requiere autorización previa.
-          </p>
-          <p className="mt-1">
-            Si el humano interactúa y necesita prioridad inmediata, pulse &quot;Tomar control&quot; o &quot;Interrumpir IA&quot;. La IA nunca ejecuta
-            bucles continuos; solo acciones atómicas.
-          </p>
-        </div>
+
       </div>
 
       <div className="relative w-full overflow-hidden rounded-md border border-gray-200 shadow-sm" style={{ aspectRatio: '1280/900' }}>

@@ -30,7 +30,10 @@ export class GeminiProvider {
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey)
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    this.model = this.genAI.getGenerativeModel(
+      { model: 'gemini-3-flash-preview' },
+      { apiVersion: 'v1beta' }
+    )
   }
 
   async generateResponse(prompt: string, context: Record<string, unknown>): Promise<string> {
@@ -58,8 +61,8 @@ export class GeminiProvider {
       History:
       ${JSON.stringify(history)}
       
-      Decide the next action(s). You can return a SINGLE action object OR an ARRAY of action objects to be executed in sequence.
-      Return ONLY a JSON object or JSON array with the following structure:
+      Decide the next action. Return ONLY A SINGLE action object.
+      Return ONLY a JSON object with the following structure:
       {
         "action": "click" | "type" | "wait" | "done" | "fail" | "reload" | "open_tab" | "switch_tab" | "close_tab" | "go_back" | "go_forward" | "dblclick" | "hover" | "check" | "uncheck" | "fill" | "press" | "select_option" | "upload_file" | "mouse_move" | "mouse_down" | "mouse_up" | "mouse_click" | "mouse_wheel" | "keyboard_type" | "keyboard_press" | "keyboard_down" | "keyboard_up" | "evaluate" | "add_cookies" | "clear_cookies" | "set_geolocation" | "assert" | "save_auth",
         "selector": "css selector (if needed)",

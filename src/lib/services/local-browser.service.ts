@@ -17,40 +17,49 @@ export class LocalBrowserService {
     let connected = false
 
     if (devtoolsBase) {
-      // Normalize to HTTP(S) for the DevTools discovery endpoint even if a ws(s) URL was provided
       const normalizedBase = devtoolsBase.replace(/^ws(s?):\/\//, 'http$1://')
       const versionUrl = normalizedBase.endsWith('/json/version')
         ? normalizedBase
         : `${normalizedBase.replace(/\/$/, '')}/json/version`
 
       try {
+        if (!normalizedBase.startsWith('http')) {
+          throw new Error('Not an HTTP endpoint, skipping fetch')
+        }
         console.log(`[LocalBrowser] Resolving DevTools endpoint from ${versionUrl}`)
         const response = await fetch(versionUrl)
 
-        if (!response.ok) {
-          throw new Error(`Unexpected status ${response.status}`)
+        if (response.ok) {
+          const payload = (await response.json()) as { webSocketDebuggerUrl?: string }
+          let devtoolsWs = payload.webSocketDebuggerUrl
+
+          if (devtoolsWs) {
+            const host = new URL(normalizedBase).hostname
+            const port = new URL(normalizedBase).port || '9222'
+            devtoolsWs = devtoolsWs.replace(/localhost:\d+/, `${host}:${port}`)
+
+            console.log(`[LocalBrowser] Connecting over CDP to ${devtoolsWs}`)
+            this.browser = await chromium.connectOverCDP(devtoolsWs)
+            connected = true
+          }
         }
-
-        const payload = (await response.json()) as { webSocketDebuggerUrl?: string }
-        const devtoolsWs = payload.webSocketDebuggerUrl
-
-        if (!devtoolsWs) {
-          throw new Error('webSocketDebuggerUrl missing in DevTools response')
-        }
-
-        console.log(`[LocalBrowser] Connecting over CDP to ${devtoolsWs}`)
-        this.browser = await chromium.connectOverCDP(devtoolsWs)
-        connected = true
-      } catch (error) {
-        console.error('[LocalBrowser] Failed to connect via DevTools endpoint:', error)
+      } catch (_) {
+        console.warn('[LocalBrowser] Could not resolve DevTools via URL, falling back to direct WS')
       }
     }
 
     if (!connected && wsEndpoint) {
       console.log(`[LocalBrowser] Connecting to remote browser at ${wsEndpoint}`)
-      // Para Selenium Grid / Seleniarm usamos connect()
-      this.browser = await chromium.connect(wsEndpoint)
-      connected = true
+      try {
+        if (wsEndpoint.startsWith('ws')) {
+          this.browser = await chromium.connectOverCDP(wsEndpoint)
+        } else {
+          this.browser = await chromium.connect(wsEndpoint)
+        }
+        connected = true
+      } catch (_) {
+        console.error('[LocalBrowser] direct connection failed:', _)
+      }
     }
 
     if (!connected) {
@@ -84,7 +93,7 @@ export class LocalBrowserService {
 
     this.context = await this.browser.newContext({
       ignoreHTTPSErrors,
-      storageState // Inject saved state if available
+      storageState
     })
     this.page = await this.context.newPage()
   }
@@ -92,7 +101,6 @@ export class LocalBrowserService {
   async goto(url: string) {
     if (!this.page) throw new Error('Browser not initialized')
     await this.page.goto(url, { waitUntil: 'networkidle' })
-    // Wait a bit more for dynamic content
     await this.page.waitForTimeout(2000)
   }
 
@@ -115,45 +123,34 @@ export class LocalBrowserService {
     if (!this.page) throw new Error('Browser not initialized')
 
     try {
-      // Wait for page to be fully loaded
       await this.page.waitForLoadState('domcontentloaded', { timeout: 10000 })
       await this.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
         console.log('[LocalBrowser] Network idle timeout, proceeding anyway')
       })
 
-      // Additional wait for dynamic content
       await this.page.waitForTimeout(1000)
 
-      // Simplified DOM extraction for LLM consumption
       const dom = await this.page.evaluate(() => {
-        // Try to get body content first
         const body = document.body
-        if (!body || !body.innerHTML || body.innerHTML.trim().length === 0) {
-          // Fallback to full document if body is empty
-          return document.documentElement.outerHTML
+        if (!body) return document.documentElement.outerHTML
+
+        const clone = body.cloneNode(true) as HTMLElement
+        const noise = clone.querySelectorAll('script, style, svg, path, noscript, head, iframe, footer, nav')
+        noise.forEach(el => el.remove())
+
+        const iterator = document.createNodeIterator(clone, NodeFilter.SHOW_COMMENT)
+        let node;
+        while (node = iterator.nextNode()) {
+          node.parentElement?.removeChild(node)
         }
 
-        // Remove scripts, styles, etc. to reduce token count
-        const clone = body.cloneNode(true) as HTMLElement
-        const scripts = clone.querySelectorAll('script, style, svg, path, noscript')
-        scripts.forEach(el => el.remove())
-
-        return clone.innerHTML || document.documentElement.outerHTML
+        return clone.innerHTML.trim()
       })
 
       console.log(`[LocalBrowser] Extracted DOM length: ${dom.length}`)
-
-      if (dom.length === 0) {
-        console.error('[LocalBrowser] WARNING: Extracted DOM is empty!')
-        // Try to get page URL for debugging
-        const url = await this.page.url()
-        console.error(`[LocalBrowser] Current URL: ${url}`)
-      }
-
       return dom
     } catch (error) {
       console.error('[LocalBrowser] Error extracting DOM:', error)
-      // Return empty string instead of throwing to allow the agent to continue
       return ''
     }
   }
@@ -171,21 +168,14 @@ export class LocalBrowserService {
   async openNewTab(url?: string) {
     if (!this.context) throw new Error('Browser context not initialized')
     this.page = await this.context.newPage()
-    if (url) {
-      await this.goto(url)
-    }
+    if (url) await this.goto(url)
   }
 
   async closeCurrentTab() {
     if (!this.page) throw new Error('Browser not initialized')
     await this.page.close()
-    // Switch to the last open page if available
     const pages = this.context?.pages() || []
-    if (pages.length > 0) {
-      this.page = pages[pages.length - 1]
-    } else {
-      this.page = null
-    }
+    this.page = pages.length > 0 ? pages[pages.length - 1] : null
   }
 
   async switchToTab(index: number) {
@@ -194,11 +184,10 @@ export class LocalBrowserService {
     if (index >= 0 && index < pages.length) {
       this.page = pages[index]
     } else {
-      throw new Error(`Tab index ${index} out of bounds (total tabs: ${pages.length})`)
+      throw new Error(`Tab index ${index} out of bounds`)
     }
   }
 
-  // Navigation
   async goBack() {
     if (!this.page) throw new Error('Browser not initialized')
     await this.page.goBack({ waitUntil: 'networkidle' })
@@ -209,7 +198,6 @@ export class LocalBrowserService {
     await this.page.goForward({ waitUntil: 'networkidle' })
   }
 
-  // Interaction
   async dblclick(selector: string) {
     if (!this.page) throw new Error('Browser not initialized')
     await this.page.dblclick(selector)
@@ -255,7 +243,6 @@ export class LocalBrowserService {
     await this.page.focus(selector)
   }
 
-  // Mouse
   async mouseMove(x: number, y: number) {
     if (!this.page) throw new Error('Browser not initialized')
     await this.page.mouse.move(x, y)
@@ -281,7 +268,6 @@ export class LocalBrowserService {
     await this.page.mouse.wheel(deltaX, deltaY)
   }
 
-  // Keyboard
   async keyboardType(text: string) {
     if (!this.page) throw new Error('Browser not initialized')
     await this.page.keyboard.type(text)
@@ -302,7 +288,6 @@ export class LocalBrowserService {
     await this.page.keyboard.up(key)
   }
 
-  // Context & Cookies
   async addCookies(cookies: Parameters<BrowserContext['addCookies']>[0]) {
     if (!this.context) throw new Error('Browser context not initialized')
     await this.context.addCookies(cookies)
@@ -319,37 +304,34 @@ export class LocalBrowserService {
     await this.context.grantPermissions(['geolocation'])
   }
 
-  // JS Evaluation
   async evaluate(script: string) {
     if (!this.page) throw new Error('Browser not initialized')
     return await this.page.evaluate(script)
   }
 
-  // Assertions (Expects)
   async assertElement(selector: string, assertionType: 'visible' | 'hidden' | 'enabled' | 'disabled' | 'text' | 'value', expectedValue?: string) {
     if (!this.page) throw new Error('Browser not initialized')
     const locator = this.page.locator(selector)
-
     switch (assertionType) {
       case 'visible':
-        if (!(await locator.isVisible())) throw new Error(`Expected element ${selector} to be visible`)
+        if (!(await locator.isVisible())) throw new Error(`Expected visible`)
         break
       case 'hidden':
-        if (await locator.isVisible()) throw new Error(`Expected element ${selector} to be hidden`)
+        if (await locator.isVisible()) throw new Error(`Expected hidden`)
         break
       case 'enabled':
-        if (!(await locator.isEnabled())) throw new Error(`Expected element ${selector} to be enabled`)
+        if (!(await locator.isEnabled())) throw new Error(`Expected enabled`)
         break
       case 'disabled':
-        if (await locator.isEnabled()) throw new Error(`Expected element ${selector} to be disabled`)
+        if (await locator.isEnabled()) throw new Error(`Expected disabled`)
         break
       case 'text':
         const text = await locator.textContent()
-        if (!text?.includes(expectedValue || '')) throw new Error(`Expected element ${selector} to contain text "${expectedValue}", found "${text}"`)
+        if (!text?.includes(expectedValue || '')) throw new Error(`Expected text`)
         break
       case 'value':
         const value = await locator.inputValue()
-        if (value !== expectedValue) throw new Error(`Expected element ${selector} to have value "${expectedValue}", found "${value}"`)
+        if (value !== expectedValue) throw new Error(`Expected value`)
         break
     }
   }
@@ -357,21 +339,11 @@ export class LocalBrowserService {
   async saveStorageState(path: string) {
     if (!this.context) throw new Error('Browser context not initialized')
     await this.context.storageState({ path })
-    console.log(`[LocalBrowser] Storage state saved to ${path}`)
   }
 
   async loadStorageState(path: string) {
-    // This is typically done at context creation, but we can also add cookies/storage to existing context if needed
-    // However, Playwright recommends doing it at context creation. 
-    // For now, we'll assume this is called manually or we restart context.
-    // But since we want to persist session across runs, we should modify launch() to check for a default auth file.
-    console.log(`[LocalBrowser] Loading storage state from ${path}`)
     const state = JSON.parse(await fs.readFile(path, 'utf-8'))
-    if (this.context) {
-      await this.context.addCookies(state.cookies)
-      // LocalStorage needs to be added via script injection usually or context option
-      // But adding cookies is often enough for session persistence.
-    }
+    if (this.context) await this.context.addCookies(state.cookies)
   }
 
   async close() {
