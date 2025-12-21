@@ -17,9 +17,11 @@ export class LocalBrowserService {
     let connected = false
 
     if (devtoolsBase) {
-      const versionUrl = devtoolsBase.endsWith('/json/version')
-        ? devtoolsBase
-        : `${devtoolsBase.replace(/\/$/, '')}/json/version`
+      // Normalize to HTTP(S) for the DevTools discovery endpoint even if a ws(s) URL was provided
+      const normalizedBase = devtoolsBase.replace(/^ws(s?):\/\//, 'http$1://')
+      const versionUrl = normalizedBase.endsWith('/json/version')
+        ? normalizedBase
+        : `${normalizedBase.replace(/\/$/, '')}/json/version`
 
       try {
         console.log(`[LocalBrowser] Resolving DevTools endpoint from ${versionUrl}`)

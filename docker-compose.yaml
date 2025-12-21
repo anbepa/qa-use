@@ -10,7 +10,7 @@ services:
       - INNGEST_DEV=1
       - INNGEST_BASE_URL=http://inngest:8288
       - BROWSER_WS_ENDPOINT=ws://browser:4444
-      - BROWSER_DEVTOOLS_WS=ws://browser:9222
+      - BROWSER_DEVTOOLS_WS=http://browser:9222
       - NEXT_PUBLIC_LIVE_PREVIEW_URL=http://localhost:7900/?resize=scale&autoconnect=1&view_only=0
       - HEADLESS=${HEADLESS:-false}
       - VIDEO=${VIDEO:-false}
@@ -44,7 +44,7 @@ services:
       - "9222:9222"
     networks:
       - qause-network
-    entrypoint: ["bash", "-lc", "chromium-browser --remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --disable-dev-shm-usage --disable-gpu --no-sandbox --user-data-dir=/home/seluser/chrome-data & /opt/bin/entry_point.sh"]
+    entrypoint: ["bash", "-lc", "/usr/bin/chromium --remote-debugging-address=0.0.0.0 --remote-debugging-port=9222 --disable-dev-shm-usage --disable-gpu --no-sandbox --user-data-dir=/home/seluser/chrome-data & /opt/bin/entry_point.sh"]
 
 
   inngest:
