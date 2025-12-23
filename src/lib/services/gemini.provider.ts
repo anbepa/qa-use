@@ -93,22 +93,30 @@ export class GeminiProvider {
         const result = await this.model.generateContent(prompt)
         responseText = result.response.text()
         break; // Exit loop on successful response
-      } catch (error: unknown) {
+      } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
         // Check for 429 error (rate limit)
-        // The Gemini API might return a 429 status directly or embed it in the error message.
-        if (error instanceof Error && (error.message?.includes('429') || (error as { status?: number }).status === 429)) {
+        if (error.message?.includes('429') || error.status === 429) {
           retryCount++
-          if (retryCount === maxRetries) {
-            console.error(`[GeminiProvider] Max retries (${maxRetries}) exceeded for 429 error.`)
-            throw error // Re-throw if max retries reached
+
+          // Attempt to extract the retry delay from the error message or object
+          // The error message often contains "Please retry in X.Xs"
+          const retryMatch = error.message?.match(/retry in ([\d.]+)s/i)
+          let delay = baseDelay * Math.pow(2, retryCount - 1)
+
+          if (retryMatch && retryMatch[1]) {
+            delay = (parseFloat(retryMatch[1]) + 1) * 1000 // Add 1 second buffer
           }
 
-          const delay = baseDelay * Math.pow(2, retryCount - 1)
-          console.log(`[GeminiProvider] Rate limit hit. Retrying in ${delay}ms... (Attempt ${retryCount}/${maxRetries})`)
+          if (retryCount >= maxRetries) {
+            console.error(`[GeminiProvider] Max retries (${maxRetries}) exceeded for 429 error.`)
+            throw error
+          }
+
+          console.log(`[GeminiProvider] Rate limit hit. Retrying in ${Math.round(delay / 1000)}s... (Attempt ${retryCount}/${maxRetries})`)
           await new Promise(resolve => setTimeout(resolve, delay))
           continue
         }
-        throw error // Re-throw other types of errors immediately
+        throw error
       }
     }
 

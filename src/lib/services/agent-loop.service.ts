@@ -80,8 +80,12 @@ export class AgentLoopService {
         const actions = Array.isArray(decision) ? decision : [decision]
         const action = actions[0]
 
-        // Delay for rate limits (Increased to 7s for continuous flow)
-        await new Promise(resolve => setTimeout(resolve, 7000))
+        if (action) {
+          console.log(`[AgentLoop] IA Decidió: ${action.action} ${action.selector ? `en ${action.selector}` : ''} ${action.text ? `con texto "${action.text}"` : ''} ${action.reason ? `(Razón: ${action.reason})` : ''}`)
+        }
+
+        // Delay for rate limits (Increased to 8s for Free Tier safety)
+        await new Promise(resolve => setTimeout(resolve, 8000))
 
         if (!action) {
           console.warn('[AgentLoop] Gemini returned no action.')

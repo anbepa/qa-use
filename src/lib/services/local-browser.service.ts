@@ -124,8 +124,9 @@ export class LocalBrowserService {
 
     try {
       await this.page.waitForLoadState('domcontentloaded', { timeout: 10000 })
-      await this.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
-        console.log('[LocalBrowser] Network idle timeout, proceeding anyway')
+      // Reduced networkidle timeout to 5s to avoid being blocked by persistent trackers
+      await this.page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
+        console.log('[LocalBrowser] Network idle timeout (5s), proceeding with current DOM')
       })
 
       await this.page.waitForTimeout(1000)
@@ -135,16 +136,37 @@ export class LocalBrowserService {
         if (!body) return document.documentElement.outerHTML
 
         const clone = body.cloneNode(true) as HTMLElement
-        const noise = clone.querySelectorAll('script, style, svg, path, noscript, head, iframe, footer, nav')
+
+        // 1. Remove non-visible elements and heavy noise
+        const noise = clone.querySelectorAll('script, style, svg, path, noscript, head, iframe, footer, nav, link, meta')
         noise.forEach(el => el.remove())
 
+        // 2. Remove comments
         const iterator = document.createNodeIterator(clone, NodeFilter.SHOW_COMMENT)
         let node;
         while (node = iterator.nextNode()) {
           node.parentElement?.removeChild(node)
         }
 
-        return clone.innerHTML.trim()
+        // 3. Clean attributes to save massive space/tokens
+        const allElements = clone.querySelectorAll('*')
+        allElements.forEach(el => {
+          // Keep only essential attributes for automation
+          const essential = ['id', 'class', 'name', 'type', 'value', 'href', 'placeholder', 'role', 'title']
+          Array.from(el.attributes).forEach(attr => {
+            if (!essential.includes(attr.name)) {
+              el.removeAttribute(attr.name)
+            }
+          })
+
+          // Remove hidden elements from the decision tree
+          const style = window.getComputedStyle(el)
+          if (style.display === 'none' || style.visibility === 'hidden') {
+            el.remove()
+          }
+        })
+
+        return clone.innerHTML.replace(/\s+/g, ' ').trim()
       })
 
       console.log(`[LocalBrowser] Extracted DOM length: ${dom.length}`)
