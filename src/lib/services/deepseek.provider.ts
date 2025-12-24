@@ -50,8 +50,10 @@ export class DeepSeekProvider {
       You are a browser automation agent.
       Goal: ${goal}
       
-      Current DOM Snapshot:
+      Current Browser Snapshot (Simplified):
       ${dom}
+      
+      Note: Use selectors like '[data-mcp-ref="123"]' to target elements by their ID in brackets.
       
       History:
       ${JSON.stringify(history)}

@@ -43,3 +43,10 @@ next-env.d.ts
 
 # data
 /data
+
+# evidences
+/public/evidences/
+*.png
+*.jpg
+*.jpeg
+*.webp

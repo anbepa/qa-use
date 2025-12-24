@@ -124,55 +124,54 @@ export class LocalBrowserService {
 
     try {
       await this.page.waitForLoadState('domcontentloaded', { timeout: 10000 })
-      // Reduced networkidle timeout to 5s to avoid being blocked by persistent trackers
       await this.page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
-        console.log('[LocalBrowser] Network idle timeout (5s), proceeding with current DOM')
+        console.log('[LocalBrowser] Network idle timeout (5s), proceeding with current state')
       })
 
       await this.page.waitForTimeout(1000)
 
-      const dom = await this.page.evaluate(() => {
-        const body = document.body
-        if (!body) return document.documentElement.outerHTML
+      // 1. Inject MCP references into interactive elements
+      await this.page.evaluate(() => {
+        let idCount = 1
+        const interactiveSelectors = 'button, a, input, select, textarea, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="textbox"], [role="combobox"], [contenteditable="true"]'
 
-        const clone = body.cloneNode(true) as HTMLElement
+        // Clear previous refs
+        document.querySelectorAll('[data-mcp-ref]').forEach(el => el.removeAttribute('data-mcp-ref'))
 
-        // 1. Remove non-visible elements and heavy noise
-        const noise = clone.querySelectorAll('script, style, svg, path, noscript, head, iframe, footer, nav, link, meta')
-        noise.forEach(el => el.remove())
-
-        // 2. Remove comments
-        const iterator = document.createNodeIterator(clone, NodeFilter.SHOW_COMMENT)
-        let node;
-        while (node = iterator.nextNode()) {
-          node.parentElement?.removeChild(node)
-        }
-
-        // 3. Clean attributes to save massive space/tokens
-        const allElements = clone.querySelectorAll('*')
-        allElements.forEach(el => {
-          // Keep only essential attributes for automation
-          const essential = ['id', 'class', 'name', 'type', 'value', 'href', 'placeholder', 'role', 'title']
-          Array.from(el.attributes).forEach(attr => {
-            if (!essential.includes(attr.name)) {
-              el.removeAttribute(attr.name)
-            }
-          })
-
-          // Remove hidden elements from the decision tree
+        const elements = document.querySelectorAll(interactiveSelectors)
+        elements.forEach(el => {
           const style = window.getComputedStyle(el)
-          if (style.display === 'none' || style.visibility === 'hidden') {
-            el.remove()
+          if (style.display !== 'none' && style.visibility !== 'hidden' && (el as HTMLElement).offsetWidth > 0 && (el as HTMLElement).offsetHeight > 0) {
+            el.setAttribute('data-mcp-ref', String(idCount++))
           }
         })
-
-        return clone.innerHTML.replace(/\s+/g, ' ').trim()
       })
 
-      console.log(`[LocalBrowser] Extracted DOM length: ${dom.length}`)
-      return dom
+      // 2. Walk the DOM and build our own tree that includes the refs
+
+      const simplifiedDOM = await this.page.evaluate(() => {
+        const walk = (node: Element): string => {
+          let currentContent = ''
+          const ref = node.getAttribute('data-mcp-ref')
+          if (ref) {
+            const role = node.getAttribute('role') || node.tagName.toLowerCase()
+            const name = (node as HTMLElement).innerText || node.getAttribute('aria-label') || node.getAttribute('placeholder') || node.getAttribute('value') || ''
+            currentContent = `[${ref}] ${role} "${name.replace(/\s+/g, ' ').trim()}"\n`
+          }
+
+          for (const child of Array.from(node.children)) {
+            currentContent += walk(child)
+          }
+          return currentContent
+        }
+
+        return walk(document.body).trim()
+      })
+
+      console.log(`[LocalBrowser] Extracted Optimized Snapshot length: ${simplifiedDOM.length}`)
+      return simplifiedDOM
     } catch (error) {
-      console.error('[LocalBrowser] Error extracting DOM:', error)
+      console.error('[LocalBrowser] Error extracting Optimized Snapshot:', error)
       return ''
     }
   }
