@@ -143,12 +143,19 @@ async function _runTestAgent({ testRunId }: { testRunId: number }) {
     })),
   }
 
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
-    throw new NonRetriableError('GEMINI_API_KEY is not set')
+  const geminiKey = process.env.GEMINI_API_KEY
+  const deepseekKey = process.env.DEEPSEEK_API_KEY
+
+  if (!geminiKey && !deepseekKey) {
+    throw new NonRetriableError('No AI API key found (GEMINI_API_KEY or DEEPSEEK_API_KEY)')
   }
 
-  const agent = new AgentLoopService(apiKey, Number(process.env.MAX_AGENT_STEPS) || 30)
+  const apiKey = deepseekKey || geminiKey!
+  const providerType = deepseekKey ? 'deepseek' : 'gemini'
+
+  console.log(`[Inngest] Starting agent. DeepSeek key present: ${!!deepseekKey}, Gemini key present: ${!!geminiKey}. Selected provider: ${providerType}`)
+
+  const agent = new AgentLoopService(apiKey, Number(process.env.MAX_AGENT_STEPS) || 30, providerType)
   const result = await agent.run(definition, testRunId)
 
   // Update final status

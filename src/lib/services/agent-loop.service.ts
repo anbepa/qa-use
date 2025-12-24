@@ -1,21 +1,26 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
 import { eq } from 'drizzle-orm'
-import fs from 'fs/promises'
-import path from 'path'
 
 import { db } from '../db/db'
 import * as schema from '../db/schema'
 import type { TaskResponse, TestDefinition } from '../testing/engine'
+import { DeepSeekProvider } from './deepseek.provider'
 import type { AgentAction } from './gemini.provider'
 import { GeminiProvider } from './gemini.provider'
 import { LocalBrowserService } from './local-browser.service'
 
 export class AgentLoopService {
-  private gemini: GeminiProvider
+  private provider: GeminiProvider | DeepSeekProvider
   private browser: LocalBrowserService
   private maxSteps: number
 
-  constructor(apiKey: string, maxSteps: number = 30) {
-    this.gemini = new GeminiProvider(apiKey)
+  constructor(apiKey: string, maxSteps: number = 30, providerType: 'gemini' | 'deepseek' = 'deepseek') {
+    this.provider = providerType === 'deepseek'
+      ? new DeepSeekProvider(apiKey)
+      : new GeminiProvider(apiKey)
+    console.log(`[AgentLoop] Initialized with provider: ${providerType}`)
     this.browser = new LocalBrowserService()
     this.maxSteps = maxSteps
   }
@@ -76,7 +81,7 @@ export class AgentLoopService {
         const screenshotPath = path.join(evidencePath, `step_${stepCount}.png`)
         await this.browser.screenshot(screenshotPath)
 
-        const decision = await this.gemini.decideAction(dom, JSON.stringify(test), history)
+        const decision = await this.provider.decideAction(dom, JSON.stringify(test), history)
         const actions = Array.isArray(decision) ? decision : [decision]
         const action = actions[0]
 
@@ -88,7 +93,7 @@ export class AgentLoopService {
         await new Promise(resolve => setTimeout(resolve, 8000))
 
         if (!action) {
-          console.warn('[AgentLoop] Gemini returned no action.')
+          console.warn(`[AgentLoop] ${this.provider instanceof DeepSeekProvider ? 'DeepSeek' : 'Gemini'} returned no action.`)
           stepCount++
           continue
         }
