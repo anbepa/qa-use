@@ -27,6 +27,7 @@ export interface AgentAction {
 export class GeminiProvider {
   private genAI: GoogleGenerativeAI
   private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>
+  public suggestedDelay: number = 2000 // Default 2s, updated based on API response
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey)
@@ -61,7 +62,13 @@ export class GeminiProvider {
       Note: Use selectors like '[data-mcp-ref="123"]' to target elements by their ID in brackets.
       
       History:
-      ${JSON.stringify(history)}
+      ${history.map((h, i) => {
+      const item = h as { action?: { action: string; reason?: string }; result?: string }
+      if (i < history.length - 5) {
+        return `Step ${i + 1}: ${item.action?.action || 'unknown'} ${item.action?.reason || ''} -> ${item.result || 'No result'}`
+      }
+      return JSON.stringify(h)
+    }).join('\n')}
       
       Decide the next action. Return ONLY A SINGLE action object.
       Return ONLY a JSON object with the following structure:

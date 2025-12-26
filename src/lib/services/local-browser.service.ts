@@ -147,20 +147,57 @@ export class LocalBrowserService {
         })
       })
 
-      // 2. Walk the DOM and build our own tree that includes the refs
+      // 2. Walk the DOM and build an enriched tree with labels, types, and form context
 
       const simplifiedDOM = await this.page.evaluate(() => {
-        const walk = (node: Element): string => {
+        const walk = (node: Element, formContext: string = ''): string => {
           let currentContent = ''
           const ref = node.getAttribute('data-mcp-ref')
+
           if (ref) {
+            const el = node as HTMLElement
             const role = node.getAttribute('role') || node.tagName.toLowerCase()
-            const name = (node as HTMLElement).innerText || node.getAttribute('aria-label') || node.getAttribute('placeholder') || node.getAttribute('value') || ''
-            currentContent = `[${ref}] ${role} "${name.replace(/\s+/g, ' ').trim()}"\n`
+
+            // Skip disabled or readonly elements
+            if ((el as HTMLInputElement).disabled || (el as HTMLInputElement).readOnly) {
+              return ''
+            }
+
+            // Get label text (multiple sources)
+            const labelFor = document.querySelector(`label[for="${el.id}"]`)?.textContent?.trim() || ''
+            const ariaLabel = el.getAttribute('aria-label') || ''
+            const placeholder = el.getAttribute('placeholder') || ''
+            const innerText = el.innerText?.trim() || ''
+            const value = (el as HTMLInputElement).value || ''
+
+            const labelText = labelFor || ariaLabel || placeholder || innerText || value
+
+            // Get input metadata
+            let metadata = ''
+            if (node.tagName === 'INPUT') {
+              const inputType = (el as HTMLInputElement).type || 'text'
+              const pattern = (el as HTMLInputElement).pattern || ''
+              const required = (el as HTMLInputElement).required ? 'required' : ''
+              metadata = `type=${inputType}${pattern ? ` pattern="${pattern}"` : ''}${required ? ` ${required}` : ''}`
+            } else if (node.tagName === 'SELECT') {
+              const options = Array.from((el as HTMLSelectElement).options).map(opt => opt.text).join('|')
+              metadata = `options=[${options}]`
+            }
+
+            // Build the line
+            const formPrefix = formContext ? `[Form: ${formContext}] ` : ''
+            currentContent = `${formPrefix}[${ref}] ${role} "${labelText.replace(/\s+/g, ' ').trim()}"${metadata ? ` (${metadata})` : ''}\n`
+          }
+
+          // Detect form context
+          let newFormContext = formContext
+          if (node.tagName === 'FORM') {
+            const formName = (node as HTMLFormElement).name || node.getAttribute('aria-label') || 'Unnamed Form'
+            newFormContext = formName
           }
 
           for (const child of Array.from(node.children)) {
-            currentContent += walk(child)
+            currentContent += walk(child, newFormContext)
           }
           return currentContent
         }

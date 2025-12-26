@@ -26,6 +26,7 @@ export interface AgentAction {
 
 export class DeepSeekProvider {
   private openai: OpenAI
+  public suggestedDelay: number = 2000 // Default 2s, updated based on API response
 
   constructor(apiKey: string) {
     this.openai = new OpenAI({
@@ -56,7 +57,13 @@ export class DeepSeekProvider {
       Note: Use selectors like '[data-mcp-ref="123"]' to target elements by their ID in brackets.
       
       History:
-      ${JSON.stringify(history)}
+      ${history.map((h, i) => {
+      const item = h as { action?: { action: string; reason?: string }; result?: string }
+      if (i < history.length - 5) {
+        return `Step ${i + 1}: ${item.action?.action || 'unknown'} ${item.action?.reason || ''} -> ${item.result || 'No result'}`
+      }
+      return JSON.stringify(h)
+    }).join('\n')}
       
       Decide the next action. Return ONLY A SINGLE action object.
       Return ONLY a JSON object with the following structure:
@@ -97,12 +104,24 @@ export class DeepSeekProvider {
         })
 
         responseText = completion.choices[0].message.content || ''
+
+        // Update suggested delay based on successful response (low delay when no rate-limit)
+        this.suggestedDelay = 1500
         break
       } catch (error: unknown) {
-        const openAIError = error as { status?: number };
+        const openAIError = error as { status?: number; headers?: Record<string, string> };
         if (openAIError.status === 429) {
           retryCount++
-          const delay = baseDelay * Math.pow(2, retryCount - 1)
+
+          // Check for retry-after header
+          const retryAfter = openAIError.headers?.['retry-after']
+          const delay = retryAfter
+            ? parseInt(retryAfter) * 1000
+            : baseDelay * Math.pow(2, retryCount - 1)
+
+          // Update suggested delay for future requests
+          this.suggestedDelay = Math.min(delay, 8000)
+
           if (retryCount >= maxRetries) throw error
           console.log(`[DeepSeekProvider] Rate limit hit. Retrying in ${Math.round(delay / 1000)}s... (Attempt ${retryCount}/${maxRetries})`)
           await new Promise(resolve => setTimeout(resolve, delay))

@@ -78,8 +78,6 @@ export class AgentLoopService {
         await new Promise(resolve => setTimeout(resolve, 1000))
 
         const dom = await this.browser.extractDOM()
-        const screenshotPath = path.join(evidencePath, `step_${stepCount}.png`)
-        await this.browser.screenshot(screenshotPath)
 
         const decision = await this.provider.decideAction(dom, JSON.stringify(test), history)
         const actions = Array.isArray(decision) ? decision : [decision]
@@ -89,8 +87,10 @@ export class AgentLoopService {
           console.log(`[AgentLoop] IA Decidió: ${action.action} ${action.selector ? `en ${action.selector}` : ''} ${action.text ? `con texto "${action.text}"` : ''} ${action.reason ? `(Razón: ${action.reason})` : ''}`)
         }
 
-        // Delay for rate limits (Increased to 8s for Free Tier safety)
-        await new Promise(resolve => setTimeout(resolve, 8000))
+        // Adaptive delay based on provider's rate-limit detection
+        const adaptiveDelay = this.provider.suggestedDelay
+        console.log(`[AgentLoop] Waiting ${adaptiveDelay}ms before next step...`)
+        await new Promise(resolve => setTimeout(resolve, adaptiveDelay))
 
         if (!action) {
           console.warn(`[AgentLoop] ${this.provider instanceof DeepSeekProvider ? 'DeepSeek' : 'Gemini'} returned no action.`)
@@ -99,10 +99,14 @@ export class AgentLoopService {
         }
 
         if (action.action === 'done') {
+          const doneScreenshotPath = path.join(evidencePath, `step_${stepCount}_done.png`)
+          await this.browser.screenshot(doneScreenshotPath).catch(() => { })
           await this.reportStepDone(); // Reset state to pending when finished
           return { status: 'pass', steps: [], error: null }
         }
         if (action.action === 'fail') {
+          const failScreenshotPath = path.join(evidencePath, `step_${stepCount}_fail.png`)
+          await this.browser.screenshot(failScreenshotPath).catch(() => { })
           await this.reportStepDone();
           return { status: 'failing', steps: [], error: action.reason || 'Agent failed' }
         }
@@ -202,6 +206,9 @@ export class AgentLoopService {
               break
             case 'assert':
               if (action.selector && action.assertionType) await this.browser.assertElement(action.selector, action.assertionType, action.expectedValue)
+              // Screenshot for evidence on assertions
+              const assertScreenshotPath = path.join(evidencePath, `step_${stepCount}_assert.png`)
+              await this.browser.screenshot(assertScreenshotPath).catch(() => { })
               break
             case 'save_auth':
               const authPath = path.join(process.cwd(), 'data', 'auth.json')
@@ -212,6 +219,10 @@ export class AgentLoopService {
         } catch (e: unknown) {
           const error = e instanceof Error ? e : new Error('Unknown error')
           actionResult = `Error: ${error.message}`
+
+          // Screenshot on error for debugging
+          const errorScreenshotPath = path.join(evidencePath, `error_step_${stepCount}.png`)
+          await this.browser.screenshot(errorScreenshotPath).catch(() => { })
         }
 
         history.push({ action, result: actionResult })
