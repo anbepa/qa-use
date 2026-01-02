@@ -80,8 +80,7 @@ export class AgentLoopService {
         const dom = await this.browser.extractDOM()
 
         const decision = await this.provider.decideAction(dom, JSON.stringify(test), history)
-        const actions = Array.isArray(decision) ? decision : [decision]
-        const action = actions[0]
+        const action = Array.isArray(decision) ? decision[0] : decision
 
         if (action) {
           console.log(`[AgentLoop] IA Decidió: ${action.action} ${action.selector ? `en ${action.selector}` : ''} ${action.text ? `con texto "${action.text}"` : ''} ${action.reason ? `(Razón: ${action.reason})` : ''}`)
@@ -98,10 +97,11 @@ export class AgentLoopService {
           continue
         }
 
+        // Check for done/fail
         if (action.action === 'done') {
           const doneScreenshotPath = path.join(evidencePath, `step_${stepCount}_done.png`)
           await this.browser.screenshot(doneScreenshotPath).catch(() => { })
-          await this.reportStepDone(); // Reset state to pending when finished
+          await this.reportStepDone();
           return { status: 'pass', steps: [], error: null }
         }
         if (action.action === 'fail') {
