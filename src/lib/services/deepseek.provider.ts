@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import OpenAI from 'openai'
 import type { BrowserContext } from 'playwright'
 
 export interface AgentAction {
@@ -24,31 +24,26 @@ export interface AgentAction {
   path?: string
 }
 
-export class GeminiProvider {
-  private genAI: GoogleGenerativeAI
-  private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>
+export class DeepSeekProvider {
+  private openai: OpenAI
   public suggestedDelay: number = 2000 // Default 2s, updated based on API response
 
   constructor(apiKey: string) {
-    this.genAI = new GoogleGenerativeAI(apiKey)
-    this.model = this.genAI.getGenerativeModel(
-      { model: 'gemini-3-flash-preview' },
-      { apiVersion: 'v1beta' }
-    )
+    this.openai = new OpenAI({
+      baseURL: 'https://api.deepseek.com',
+      apiKey: apiKey,
+    })
   }
 
   async generateResponse(prompt: string, context: Record<string, unknown>): Promise<string> {
-    const chat = this.model.startChat({
-      history: [
-        {
-          role: 'user',
-          parts: [{ text: JSON.stringify(context) }],
-        },
+    const completion = await this.openai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: `Context: ${JSON.stringify(context)}\n\nPrompt: ${prompt}` }
       ],
+      model: 'deepseek-chat',
     })
-
-    const result = await chat.sendMessage(prompt)
-    return result.response.text()
+    return completion.choices[0].message.content || ''
   }
 
   async decideAction(dom: string, goal: string, history: Array<Record<string, unknown>>): Promise<AgentAction | AgentAction[]> {
@@ -92,36 +87,43 @@ export class GeminiProvider {
       }
     `
 
-    let responseText: string = '';
+    let responseText: string = ''
     const maxRetries = 5
     let retryCount = 0
-    const baseDelay = 5000 // Increased to 5 seconds
+    const baseDelay = 5000
 
     while (retryCount < maxRetries) {
       try {
-        const result = await this.model.generateContent(prompt)
-        responseText = result.response.text()
-        break; // Exit loop on successful response
-      } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-        // Check for 429 error (rate limit)
-        if (error.message?.includes('429') || error.status === 429) {
+        const completion = await this.openai.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are a helpful browser automation assistant that returns only valid JSON.' },
+            { role: 'user', content: prompt }
+          ],
+          model: 'deepseek-chat',
+          response_format: { type: 'json_object' }
+        })
+
+        responseText = completion.choices[0].message.content || ''
+
+        // Update suggested delay based on successful response (low delay when no rate-limit)
+        this.suggestedDelay = 1500
+        break
+      } catch (error: unknown) {
+        const openAIError = error as { status?: number; headers?: Record<string, string> };
+        if (openAIError.status === 429) {
           retryCount++
 
-          // Attempt to extract the retry delay from the error message or object
-          // The error message often contains "Please retry in X.Xs"
-          const retryMatch = error.message?.match(/retry in ([\d.]+)s/i)
-          let delay = baseDelay * Math.pow(2, retryCount - 1)
+          // Check for retry-after header
+          const retryAfter = openAIError.headers?.['retry-after']
+          const delay = retryAfter
+            ? parseInt(retryAfter) * 1000
+            : baseDelay * Math.pow(2, retryCount - 1)
 
-          if (retryMatch && retryMatch[1]) {
-            delay = (parseFloat(retryMatch[1]) + 1) * 1000 // Add 1 second buffer
-          }
+          // Update suggested delay for future requests
+          this.suggestedDelay = Math.min(delay, 8000)
 
-          if (retryCount >= maxRetries) {
-            console.error(`[GeminiProvider] Max retries (${maxRetries}) exceeded for 429 error.`)
-            throw error
-          }
-
-          console.log(`[GeminiProvider] Rate limit hit. Retrying in ${Math.round(delay / 1000)}s... (Attempt ${retryCount}/${maxRetries})`)
+          if (retryCount >= maxRetries) throw error
+          console.log(`[DeepSeekProvider] Rate limit hit. Retrying in ${Math.round(delay / 1000)}s... (Attempt ${retryCount}/${maxRetries})`)
           await new Promise(resolve => setTimeout(resolve, delay))
           continue
         }
@@ -129,33 +131,15 @@ export class GeminiProvider {
       }
     }
 
-    // If the loop completes without breaking, it means max retries were exceeded for a 429 error
-    // and the last `throw error` would have been executed.
-    // This line should theoretically not be reached if an error occurred or responseText was set.
     if (!responseText) {
-      throw new Error('Failed to get a response from Gemini after multiple retries.')
+      throw new Error('Failed to get a response from DeepSeek after multiple retries.')
     }
 
     try {
-      // Clean up markdown code blocks if present
-      let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim()
-
-      // Sometimes the model adds text after the JSON, so we try to find the last closing brace/bracket
-      const lastBrace = cleanJson.lastIndexOf('}')
-      const lastBracket = cleanJson.lastIndexOf(']')
-
-      if (lastBrace > -1 || lastBracket > -1) {
-        const endIndex = Math.max(lastBrace, lastBracket)
-        cleanJson = cleanJson.substring(0, endIndex + 1)
-      }
-
-      return JSON.parse(cleanJson)
+      return JSON.parse(responseText)
     } catch (_) {
-      console.error('Failed to parse Gemini response:', responseText)
-      // Try to extract the reason from the response text
-      const reasonMatch = responseText.match(/"reason":\s*"([^"]+)"/i)
-      const extractedReason = reasonMatch ? reasonMatch[1] : responseText.substring(0, 200)
-      return { action: 'fail', reason: extractedReason || 'Invalid JSON response from Gemini' }
+      console.error('Failed to parse DeepSeek response:', responseText)
+      return { action: 'fail', reason: 'Invalid JSON response from DeepSeek' }
     }
   }
 }

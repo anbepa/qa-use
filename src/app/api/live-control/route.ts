@@ -68,7 +68,7 @@ const transitions: Record<
     ok: true,
   }),
   ai_step_done: (state) => ({
-    next: { ...state, state: 'HUMAN_CONTROL', actor: 'human', lastAction: 'ai_step_done' },
+    next: { ...state, state: 'AI_PENDING', actor: 'human', lastAction: 'ai_step_done' },
     ok: true,
   }),
 }

@@ -10,12 +10,12 @@ async function testModel() {
     process.exit(1);
   }
 
-  const modelName = 'gemini-2.5-flash';
+  const modelName = 'gemini-3-flash-preview';
   console.log(`Testing model: ${modelName}`);
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: modelName });
+    const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: 'v1beta' });
 
     const prompt = 'Hello, are you functioning correctly? Please reply with "Yes, I am functional." and your model version if you know it.';
     const result = await model.generateContent(prompt);
